@@ -167,14 +167,12 @@ func TestVerifyBatch(t *testing.T) {
 }
 
 func BenchmarkVerifyBatch64(b *testing.B) {
-	var zero zeroReader
-
-	pks, sigs, messages := testBatchInit(b, zero, batchCount)
+	pks, sigs, messages := testBatchInit(b, rand.Reader, batchCount)
 	testBatchSaveY = false
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		ok, _, _ := VerifyBatch(zero, pks[:], messages[:], sigs[:])
+		ok, _, _ := VerifyBatch(nil, pks[:], messages[:], sigs[:])
 		if !ok {
 			b.Fatalf("unexpected batch verification failure!")
 		}
