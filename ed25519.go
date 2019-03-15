@@ -174,7 +174,7 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 		hram, S modm.Bignum256
 	)
 
-	if (sig[63]&224 != 0) || !ge25519.UnpackNegativeVartime(&A, publicKey) {
+	if len(sig) != SignatureSize || (sig[63]&224 != 0) || !ge25519.UnpackNegativeVartime(&A, publicKey) {
 		return false
 	}
 
