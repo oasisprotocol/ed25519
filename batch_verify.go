@@ -165,7 +165,7 @@ func multiScalarmultVartimeFinal(r, point *ge25519.Ge25519, scalar *modm.Bignum2
 
 	limb := limb128bits
 	if modm.IsOneVartime(scalar) {
-		// this will happen most of the time after bos-carter
+		// this will happen most of the time after Bos-Coster
 		*r = *point
 		return
 	} else if modm.IsZeroVartime(scalar) {
@@ -320,11 +320,11 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			// requires that s be in the range [0, order) in order
 			// to prevent signature malleability.
 			if !scMinimal(sigs[i+offset][32:]) {
-				// Mark the signature as invalid.  It is fine to continue
-				// with the rest of the batch without omitting the
-				// "invalid" signature.
-				ret |= 4
-				valid[i+offset] = false
+				// Mark the signature as invalid, ensure that on return,
+				// a failure is indicated, but but do not force the
+				// fallback path.
+				ret |= 4                // >= 1 signature in the batch failed
+				valid[i+offset] = false // and the failues include this one
 			}
 
 			modm.Expand(&batch.scalars[i], sigs[i+offset][32:])
@@ -374,8 +374,14 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		// fallback
 		if !ok {
 			for i := 0; i < batchSize; i++ {
-				sigOk := Verify(publicKeys[i+offset], messages[i+offset], sigs[i+offset])
-				valid[i+offset] = sigOk
+				// If the signature is already tagged as invalid (s was out
+				// of range according to the IETF), there's no need to call
+				// into Verify.
+				sigOk := valid[i+offset]
+				if sigOk {
+					sigOk = Verify(publicKeys[i+offset], messages[i+offset], sigs[i+offset])
+					valid[i+offset] = sigOk
+				}
 				ret |= boolToRet(sigOk)
 			}
 		}
@@ -385,9 +391,9 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 	}
 
 	for i := 0; i < num; i++ {
-		ok := Verify(publicKeys[i+offset], messages[i+offset], sigs[i+offset])
-		valid[i+offset] = ok
-		ret |= boolToRet(ok)
+		sigOk := Verify(publicKeys[i+offset], messages[i+offset], sigs[i+offset])
+		valid[i+offset] = sigOk
+		ret |= boolToRet(sigOk)
 	}
 
 	return (ret == 0), valid, nil

@@ -47,7 +47,7 @@ const (
 	batchWrongSig
 
 	batchCount    = 64
-	badBatchCount = 96
+	badBatchCount = maxBatchSize + 1
 )
 
 // y coordinate of the final point from 'amd64-51-30k' with the same random generator
