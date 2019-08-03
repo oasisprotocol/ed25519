@@ -74,4 +74,9 @@ func ScalarBaseMult(dst, in *[32]byte) {
 	curve25519.Recip(&zminusy, &zminusy)
 	curve25519.Mul(&yplusz, &yplusz, &zminusy)
 	curve25519.Contract(dst[:], &yplusz)
+
+	s.Reset()
+	for i := range ec {
+		ec[i] = 0
+	}
 }

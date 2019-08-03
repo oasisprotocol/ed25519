@@ -157,6 +157,12 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 	// S = (r + H(R,A,m)a) mod L
 	modm.Contract(RS[32:], &S)
 
+	h.Reset()
+	a.Reset()
+	for i := range extsk {
+		extsk[i] = 0
+	}
+
 	return RS[:]
 }
 
@@ -212,7 +218,13 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
 
-	digest := sha512.Sum512(seed)
+	// `sha512.Sum512` does not call d.Reset().
+	var digest [64]byte
+	h := sha512.New()
+	_, _ = h.Write(seed)
+	h.Sum(digest[:0])
+	h.Reset()
+
 	digest[0] &= 248
 	digest[31] &= 127
 	digest[31] |= 64
@@ -229,6 +241,11 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 	privateKey := make([]byte, PrivateKeySize)
 	copy(privateKey, seed)
 	copy(privateKey[32:], publicKeyBytes[:])
+
+	for i := range digest {
+		digest[i] = 0
+	}
+	a.Reset()
 
 	return privateKey
 }
@@ -248,6 +265,10 @@ func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
 	privateKey := NewKeyFromSeed(seed)
 	publicKey := make([]byte, PublicKeySize)
 	copy(publicKey, privateKey[32:])
+
+	for i := range seed {
+		seed[i] = 0
+	}
 
 	return publicKey, privateKey, nil
 }

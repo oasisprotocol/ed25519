@@ -454,4 +454,8 @@ func ScalarmultBaseNiels(r *Ge25519, basepointTable *[256][96]byte, s *modm.Bign
 		scalarmultBaseChooseNiels(&t, basepointTable, i/2, b[i])
 		nielsAdd2(r, &t)
 	}
+
+	for i := range b {
+		b[i] = 0
+	}
 }
