@@ -298,6 +298,12 @@ func barrettReduce(r, q1, r1 *Bignum256) {
 	reduce(r)
 }
 
+func (r *Bignum256) Reset() {
+	for i := range r {
+		r[i] = 0
+	}
+}
+
 func Add(r, x, y *Bignum256) {
 	c := x[0] + y[0]
 	r[0] = c & 0x3fffffff
