@@ -27,6 +27,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // +build !amd64
+// +build !go1.13,arm64
+// +build !go1.13,ppc64le
+// +build !go1.13,ppc64
 
 package ge25519
 
