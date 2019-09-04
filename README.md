@@ -54,10 +54,12 @@ The following issues currently limit performance:
  * (All) The Go compiler's inliner gives up way too early, resulting
    in a lot of uneeded function call overhead.
 
- * (All 64 bit, except `amd64`) Not enough of the `math/bits` calls have
-   SSA intrinsic special cases.  For the 64 bit codepath to be safe
-   and performant both `bits.Add64` and `bits.Mul64` need to be
-   constant time, and fast.  See `go/src/cmd/compile/internal/gc/ssa.go`.
+ * (All 64 bit, except `amd64`, `arm64`, `ppc64`, `ppc64le`) Not enough
+   of the `math/bits` calls have SSA intrinsic special cases.  For the
+   64 bit codepath to be safe and performant both `bits.Add64` and
+   `bits.Mul64` need to be constant time, and fast.
+
+   See `go/src/cmd/compile/internal/gc/ssa.go`.
 
  * (All, except `amd64`, `386`, `ppc64le`) Key generation and signing
    performance will be hampered by the use of `subtle.ConstantTimeCopy`.
