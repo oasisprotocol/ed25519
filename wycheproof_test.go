@@ -68,6 +68,9 @@ func (k *wycheproofTestKey) Keys() (PublicKey, PrivateKey, error) {
 		return nil, nil, fmt.Errorf("invalid public key size")
 	}
 	rawSeed, err := hex.DecodeString(k.PrivateKey)
+	if err != nil {
+		return nil, nil, err
+	}
 	if len(rawSeed) != SeedSize {
 		return nil, nil, fmt.Errorf("invalid private key seed size")
 	}
