@@ -335,7 +335,7 @@ const (
 func writeDom2(w io.Writer, f dom2Flag, c []byte) {
 	var cLenMax int
 	if f == fCtx {
-		cLenMax = 255
+		cLenMax = ContextMaxSize
 	}
 
 	cLen := len(c)
