@@ -15,6 +15,7 @@ functionality.
  * Faster Ed25519 key generation, signing and verification.
  * Batch signature verification.
  * Faster X25519 key generation (`extra/x25519`).
+ * Support for RFC 8032 Ed25519ph, Ed25519ctx.
 
 #### Benchmarks
 

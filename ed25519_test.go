@@ -35,6 +35,7 @@ import (
 	"compress/gzip"
 	"crypto"
 	"crypto/rand"
+	"crypto/sha512"
 	"encoding/hex"
 	"os"
 	"strings"
@@ -93,7 +94,55 @@ func TestSignVerify(t *testing.T) {
 	}
 }
 
+func TestSignVerifyHashed(t *testing.T) {
+	key, _ := hex.DecodeString("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf")
+	expectedSig, _ := hex.DecodeString("98a70222f0b8121aa9d30f813d683f809e462b469c7ff87639499bb94e6dae4131f85042463c2a355a2003d062adf5aaa10b8c61e636062aaad11c2a26083406")
+
+	private := PrivateKey(key)
+	hash := sha512.Sum512([]byte("abc"))
+	sig, _ := private.Sign(nil, hash[:], crypto.SHA512)
+	if !bytes.Equal(sig, expectedSig) {
+		t.Error("signature doesn't match test vector")
+	}
+	if !VerifyHashed(key[32:], hash[:], sig) {
+		t.Errorf("valid signature rejected")
+	}
+
+	wrongHash := sha512.Sum512([]byte("wrong message"))
+	if VerifyHashed(key[32:], wrongHash[:], sig) {
+		t.Errorf("signature of different message accepted")
+	}
+}
+
 func TestCryptoSigner(t *testing.T) {
+	var zero zeroReader
+	public, private, _ := GenerateKey(zero)
+
+	signer := crypto.Signer(private)
+
+	publicInterface := signer.Public()
+	public2, ok := publicInterface.(PublicKey)
+	if !ok {
+		t.Fatalf("expected PublicKey from Public() but got %T", publicInterface)
+	}
+
+	if !bytes.Equal(public, public2) {
+		t.Errorf("public keys do not match: original:%x vs Public():%x", public, public2)
+	}
+
+	message := []byte("message")
+	var noHash crypto.Hash
+	signature, err := signer.Sign(zero, message, noHash)
+	if err != nil {
+		t.Fatalf("error from Sign(): %s", err)
+	}
+
+	if !Verify(public, message, signature) {
+		t.Errorf("Verify failed on signature from Sign()")
+	}
+}
+
+func TestCryptoSignerHashed(t *testing.T) {
 	var zero zeroReader
 	public, private, _ := GenerateKey(zero)
 
