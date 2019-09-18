@@ -39,9 +39,25 @@ func SignContext(privateKey PrivateKey, ctx, message []byte) []byte {
 	return sign(privateKey, message, fCtx, ctx)
 }
 
-// VerifyContext reports whether sig is a valid Ed25519ctx signature  of
+// VerifyContext reports whether sig is a valid Ed25519ctx signature of
 // ctx and mesage by publicKey.  It will panic if len(publicKey) is not
 // PublicKeySize or if len(ctx) is greater than ContextMaxSize.
 func VerifyContext(publicKey PublicKey, ctx, message, sig []byte) bool {
 	return verify(publicKey, message, sig, fCtx, ctx)
+}
+
+// SignHashedContext signs the given pre-hashed message with priv,
+// including the domain-separation context ctx, using Ed25519ph.  It
+// will panic if len(privateKey) is not PrivateKeySize or if len(ctx)
+// is greater than ContextMaxSize.
+func SignHashedContext(privateKey PrivateKey, ctx, hash []byte) []byte {
+	return sign(privateKey, hash, fPh, ctx)
+}
+
+// VerifyHashedContext reports whether sig is a valid Ed25519ph
+// signature of ctx and the pre-hashed mesage by publicKey.  It will
+// panic if len(publicKey) is not PublicKeySize or if len(ctx) is
+// greater than ContextMaxSize.
+func VerifyHashedContext(publicKey PublicKey, ctx, hash, sig []byte) bool {
+	return verify(publicKey, hash, sig, fPh, ctx)
 }
