@@ -333,13 +333,8 @@ const (
 )
 
 func writeDom2(w io.Writer, f dom2Flag, c []byte) {
-	var cLenMax int
-	if f == fCtx {
-		cLenMax = ContextMaxSize
-	}
-
 	cLen := len(c)
-	if cLen > cLenMax {
+	if cLen > ContextMaxSize {
 		panic("ed25519: bad context length: " + strconv.Itoa(cLen))
 	}
 
