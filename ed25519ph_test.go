@@ -80,22 +80,29 @@ func (tv *phTestVector) Run(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sig := SignContext(privKey, ctx, msg)
+	opts := &Options{
+		Context: string(ctx),
+	}
+
+	sig, err := privKey.Sign(nil, msg, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !bytes.Equal(sig, expectedSig) {
 		t.Error("signature doesn't match test vector")
 	}
-	if !VerifyContext(publicKey, ctx, msg, sig) {
+	if !VerifyWithOptions(publicKey, msg, sig, opts) {
 		t.Errorf("valid signature rejected")
 	}
 
-	wrongCtx := []byte("bad context" + string(ctx))
-	if VerifyContext(publicKey, wrongCtx, msg, sig) {
-		t.Errorf("signature with different context accepted")
+	wrongMsg := []byte("bad message" + string(msg))
+	if VerifyWithOptions(publicKey, wrongMsg, sig, opts) {
+		t.Errorf("signature of different message accepted")
 	}
 
-	wrongMsg := []byte("bad message" + string(msg))
-	if VerifyContext(publicKey, ctx, wrongMsg, sig) {
-		t.Errorf("signature of different message accepted")
+	opts.Context = "bad context" + string(ctx)
+	if VerifyWithOptions(publicKey, msg, sig, opts) {
+		t.Errorf("signature with different context accepted")
 	}
 }
 
