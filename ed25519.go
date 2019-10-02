@@ -63,9 +63,66 @@ const (
 
 	// SeedSize is the size, in bytes, of private key seeds. These are the private key representations used by RFC 8032.
 	SeedSize = 32
+
+	// ContextMaxSize is the maximum allowed context length for Ed25519ctx.
+	ContextMaxSize = 255
 )
 
 var _ crypto.Signer = (PrivateKey)(nil)
+
+// Options can be used with PrivateKey.Sign or VerifyWithOptions
+// to select Ed25519 variants.
+type Options struct {
+	// Hash can be crypto.Hash(0) for Ed25519/Ed25519ctx, or crypto.SHA512
+	// for Ed25519ph.
+	Hash crypto.Hash
+
+	// Context is an optional domain separation context for Ed25519ph and
+	// Ed25519ctx. It must be less than or equal to ContextMaxSize
+	// in length.
+	Context string
+}
+
+// HashFunc returns an identifier for the hash function used to produce
+// the message pased to Signer.Sign. For the Ed25519 family this must
+// be crypto.Hash(0) for Ed25519/Ed25519ctx, or crypto.SHA512 for
+// Ed25519ph.
+func (opt *Options) HashFunc() crypto.Hash {
+	return opt.Hash
+}
+
+func unwrapOptions(message []byte, opts crypto.SignerOpts) (dom2Flag, []byte, error) {
+	var (
+		context []byte
+		f       dom2Flag = fPure
+	)
+	if o, ok := opts.(*Options); ok {
+		context = []byte(o.Context)
+		if l := len(context); l > ContextMaxSize {
+			return f, nil, errors.New("ed25519: bad context length: " + strconv.Itoa(l))
+		}
+
+		// This disallows Ed25519ctx with a 0 length context, which is
+		// technically allowed by the RFC ("SHOULD NOT be empty"), but
+		// is discouraged and somewhat nonsensical anyway.
+		if len(context) > 0 {
+			f = fCtx
+		}
+	}
+
+	switch opts.HashFunc() {
+	case crypto.SHA512:
+		if l := len(message); l != sha512.Size {
+			return f, nil, errors.New("ed25519: bad message hash length: " + strconv.Itoa(l))
+		}
+		f = fPh
+	case crypto.Hash(0):
+	default:
+		return f, nil, errors.New("ed25519: expected opts HashFunc zero (unhashed message, for Ed25519/Ed25519ctx) or SHA-512 (for Ed25519ph)")
+	}
+
+	return f, context, nil
+}
 
 // PrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
 type PrivateKey []byte
@@ -92,17 +149,12 @@ func (priv PrivateKey) Seed() []byte {
 // crypto.Hash(0) and the message must not be hashed, as Ed25519 performs two
 // passes over messages to be signed.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	switch opts.HashFunc() {
-	case crypto.SHA512:
-		if l := len(message); l != sha512.Size {
-			return nil, errors.New("ed25519: bad message hash length: " + strconv.Itoa(l))
-		}
-		return sign(priv, message, fPh, nil), nil
-	case crypto.Hash(0):
-		return Sign(priv, message), nil
-	default:
-		return nil, errors.New("ed25519: expected opts zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
+	f, context, err := unwrapOptions(message, opts)
+	if err != nil {
+		return nil, err
 	}
+
+	return sign(priv, message, f, context), nil
 }
 
 // PublicKey is the type of Ed25519 public keys.
@@ -228,14 +280,19 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool
 	return bytes.Equal(checkR[:], sig[:32])
 }
 
-// VerifyHashed reports whether sig is a valid Ed25519ph signature by publicKey
-// of the SHA-512 digest hash. It will panic if len(publicKey) is not
-// PublicKeySize or if len(hash) is not sha512.Size.
-func VerifyHashed(publicKey PublicKey, hash, sig []byte) bool {
-	if l := len(hash); l != sha512.Size {
-		panic("ed25519: bad message hash length: " + strconv.Itoa(l))
+// VerifyWithOptions reports whether sig is a valid Ed25519 signature by
+// publicKey with the extra Options to support Ed25519ph (pre-hashed by
+// SHA-512) or Ed25519ctx (includes a domain separation context). It
+// will panic if len(publicKey) is not PublicKeySize, len(message) is
+// not sha512.Size (if pre-hashed), or len(opts.Context) is greater than
+// ContextMaxSize.
+func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts crypto.SignerOpts) bool {
+	f, context, err := unwrapOptions(message, opts)
+	if err != nil {
+		panic(err)
 	}
-	return verify(publicKey, hash, sig, fPh, nil)
+
+	return verify(publicKey, message, sig, f, context)
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if

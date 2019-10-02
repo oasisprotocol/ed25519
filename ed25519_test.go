@@ -104,12 +104,12 @@ func TestSignVerifyHashed(t *testing.T) {
 	if !bytes.Equal(sig, expectedSig) {
 		t.Error("signature doesn't match test vector")
 	}
-	if !VerifyHashed(key[32:], hash[:], sig) {
+	if !VerifyWithOptions(key[32:], hash[:], sig, crypto.SHA512) {
 		t.Errorf("valid signature rejected")
 	}
 
 	wrongHash := sha512.Sum512([]byte("wrong message"))
-	if VerifyHashed(key[32:], wrongHash[:], sig) {
+	if VerifyWithOptions(key[32:], wrongHash[:], sig, crypto.SHA512) {
 		t.Errorf("signature of different message accepted")
 	}
 }
