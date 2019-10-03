@@ -104,12 +104,15 @@ func TestSignVerifyHashed(t *testing.T) {
 	if !bytes.Equal(sig, expectedSig) {
 		t.Error("signature doesn't match test vector")
 	}
-	if !VerifyWithOptions(key[32:], hash[:], sig, crypto.SHA512) {
+
+	opts := &Options{
+		Hash: crypto.SHA512,
+	}
+	if !VerifyWithOptions(key[32:], hash[:], sig, opts) {
 		t.Errorf("valid signature rejected")
 	}
-
 	wrongHash := sha512.Sum512([]byte("wrong message"))
-	if VerifyWithOptions(key[32:], wrongHash[:], sig, crypto.SHA512) {
+	if VerifyWithOptions(key[32:], wrongHash[:], sig, opts) {
 		t.Errorf("signature of different message accepted")
 	}
 }
@@ -135,6 +138,15 @@ func TestCryptoSigner(t *testing.T) {
 	signature, err := signer.Sign(zero, message, noHash)
 	if err != nil {
 		t.Fatalf("error from Sign(): %s", err)
+	}
+
+	signature2, err := signer.Sign(zero, message, &Options{})
+	if err != nil {
+		t.Fatalf("error from Sign(&Options{}): %s", err)
+	}
+
+	if !bytes.Equal(signature, signature2) {
+		t.Errorf("signatures do not match: Sign(noHash):%x vs Sign(&Options{}):%x", signature, signature2)
 	}
 
 	if !Verify(public, message, signature) {

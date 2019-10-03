@@ -80,6 +80,9 @@ type Options struct {
 	// Context is an optional domain separation context for Ed25519ph and
 	// Ed25519ctx. It must be less than or equal to ContextMaxSize
 	// in length.
+	//
+	// Warning: If Hash is crypto.Hash(0) and Context is a zero length
+	// string, plain Ed25519 will be used instead of Ed25519ctx.
 	Context string
 }
 
@@ -91,37 +94,41 @@ func (opt *Options) HashFunc() crypto.Hash {
 	return opt.Hash
 }
 
-func unwrapOptions(message []byte, opts crypto.SignerOpts) (dom2Flag, []byte, error) {
+func (opt *Options) unwrap(message []byte) (dom2Flag, []byte, error) {
 	var (
 		context []byte
 		f       dom2Flag = fPure
 	)
-	if o, ok := opts.(*Options); ok {
-		context = []byte(o.Context)
-		if l := len(context); l > ContextMaxSize {
+
+	if l := len(opt.Context); l > 0 {
+		if l > ContextMaxSize {
 			return f, nil, errors.New("ed25519: bad context length: " + strconv.Itoa(l))
 		}
+
+		context = []byte(opt.Context)
 
 		// This disallows Ed25519ctx with a 0 length context, which is
 		// technically allowed by the RFC ("SHOULD NOT be empty"), but
 		// is discouraged and somewhat nonsensical anyway.
-		if len(context) > 0 {
-			f = fCtx
-		}
+		f = fCtx
 	}
 
-	switch opts.HashFunc() {
+	return f, context, nil
+}
+
+func checkHash(f dom2Flag, message []byte, hashFunc crypto.Hash) (dom2Flag, error) {
+	switch hashFunc {
 	case crypto.SHA512:
 		if l := len(message); l != sha512.Size {
-			return f, nil, errors.New("ed25519: bad message hash length: " + strconv.Itoa(l))
+			return f, errors.New("ed25519: bad message hash length: " + strconv.Itoa(l))
 		}
 		f = fPh
 	case crypto.Hash(0):
 	default:
-		return f, nil, errors.New("ed25519: expected opts HashFunc zero (unhashed message, for Ed25519/Ed25519ctx) or SHA-512 (for Ed25519ph)")
+		return f, errors.New("ed25519: expected opts HashFunc zero (unhashed message, for Ed25519/Ed25519ctx) or SHA-512 (for Ed25519ph)")
 	}
 
-	return f, context, nil
+	return f, nil
 }
 
 // PrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
@@ -149,7 +156,18 @@ func (priv PrivateKey) Seed() []byte {
 // crypto.Hash(0) and the message must not be hashed, as Ed25519 performs two
 // passes over messages to be signed.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	f, context, err := unwrapOptions(message, opts)
+	var (
+		context []byte
+		f       dom2Flag = fPure
+	)
+	if o, ok := opts.(*Options); ok {
+		f, context, err = o.unwrap(message)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	f, err = checkHash(f, message, opts.HashFunc())
 	if err != nil {
 		return nil, err
 	}
@@ -286,8 +304,13 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool
 // will panic if len(publicKey) is not PublicKeySize, len(message) is
 // not sha512.Size (if pre-hashed), or len(opts.Context) is greater than
 // ContextMaxSize.
-func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts crypto.SignerOpts) bool {
-	f, context, err := unwrapOptions(message, opts)
+func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) bool {
+	f, context, err := opts.unwrap(message)
+	if err != nil {
+		panic(err)
+	}
+
+	f, err = checkHash(f, message, opts.HashFunc())
 	if err != nil {
 		panic(err)
 	}
