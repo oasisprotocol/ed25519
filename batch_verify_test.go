@@ -115,7 +115,8 @@ func testBatchInstance(t *testing.T, tst batchTest, r io.Reader, batchSize int) 
 	}
 
 	// verify the batch
-	ok, valid, err := VerifyBatch(r, pks[:], messages[:], sigs[:])
+	var opts Options
+	ok, valid, err := VerifyBatch(r, pks[:], messages[:], sigs[:], &opts)
 	if err != nil {
 		t.Fatalf("failed to verify batch: %v", err)
 	}
@@ -167,12 +168,13 @@ func TestVerifyBatch(t *testing.T) {
 }
 
 func BenchmarkVerifyBatch64(b *testing.B) {
+	var opts Options
 	pks, sigs, messages := testBatchInit(b, rand.Reader, batchCount)
 	testBatchSaveY = false
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		ok, _, _ := VerifyBatch(nil, pks[:], messages[:], sigs[:])
+		ok, _, _ := VerifyBatch(nil, pks[:], messages[:], sigs[:], &opts)
 		if !ok {
 			b.Fatalf("unexpected batch verification failure!")
 		}
