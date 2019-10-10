@@ -34,6 +34,7 @@ import (
 	"crypto/sha512"
 	"errors"
 	"io"
+	"strconv"
 
 	"github.com/oasislabs/ed25519/internal/curve25519"
 	"github.com/oasislabs/ed25519/internal/ge25519"
@@ -268,7 +269,12 @@ func isNeutralVartime(p *ge25519.Ge25519) bool {
 // publicKeys, using entropy from rand.  If rand is nil, crypto/rand.Reader
 // will be used.  For convenience, the function will return `true` iff
 // every single signature is valid.
-func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte) (bool, []bool, error) {
+func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte, opts *Options) (bool, []bool, error) {
+	f, context, err := opts.unwrap()
+	if err != nil {
+		return false, nil, err
+	}
+
 	num := len(publicKeys)
 	if num != len(messages) || len(messages) != len(sigs) {
 		return false, nil, errArgCounts
@@ -306,7 +312,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		}
 
 		// generate r (scalars[batchsize+1]..scalars[2*batchsize]
-		if _, err := io.ReadFull(rand, batch.r[:16*batchSize]); err != nil {
+		if _, err = io.ReadFull(rand, batch.r[:16*batchSize]); err != nil {
 			return false, nil, err
 		}
 		rScalars := batch.scalars[batchSize+1:]
@@ -316,6 +322,13 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 		// compute scalars[0] = ((r1s1 + r2s2 + ...))
 		for i := 0; i < batchSize; i++ {
+			// This could fail the individual signature instead, but
+			// really, the only reason this check is even required is
+			// to prevent crashing if the caller is an idiot.
+			if l := len(sigs[i+offset]); l != SignatureSize {
+				return false, nil, errors.New("ed25519: bad signature length: " + strconv.Itoa(l))
+			}
+
 			// https://tools.ietf.org/html/rfc8032#section-5.1.7
 			// requires that s be in the range [0, order) in order
 			// to prevent signature malleability.
@@ -336,6 +349,19 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 		// compute scalars[1]..scalars[batchsize] as r[i]*H(R[i],A[i],m[i])
 		for i := 0; i < batchSize; i++ {
+			if l := len(publicKeys[i+offset]); l != PublicKeySize {
+				return false, nil, errors.New("ed25519: bad public key length: " + strconv.Itoa(l))
+			}
+
+			msg := messages[i+offset]
+			f, err = checkHash(f, msg, opts.HashFunc())
+			if err != nil {
+				return false, nil, err
+			}
+
+			if f != fPure {
+				writeDom2(h, f, context)
+			}
 			_, _ = h.Write(sigs[i+offset][:32])
 			_, _ = h.Write(publicKeys[i+offset][:])
 			_, _ = h.Write(messages[i+offset])

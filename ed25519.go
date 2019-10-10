@@ -94,7 +94,7 @@ func (opt *Options) HashFunc() crypto.Hash {
 	return opt.Hash
 }
 
-func (opt *Options) unwrap(message []byte) (dom2Flag, []byte, error) {
+func (opt *Options) unwrap() (dom2Flag, []byte, error) {
 	var (
 		context []byte
 		f       dom2Flag = fPure
@@ -161,7 +161,7 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 		f       dom2Flag = fPure
 	)
 	if o, ok := opts.(*Options); ok {
-		f, context, err = o.unwrap(message)
+		f, context, err = o.unwrap()
 		if err != nil {
 			return nil, err
 		}
@@ -305,7 +305,7 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool
 // not sha512.Size (if pre-hashed), or len(opts.Context) is greater than
 // ContextMaxSize.
 func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) bool {
-	f, context, err := opts.unwrap(message)
+	f, context, err := opts.unwrap()
 	if err != nil {
 		panic(err)
 	}
