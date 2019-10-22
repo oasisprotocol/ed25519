@@ -401,7 +401,7 @@ func DoubleScalarmultVartime(r, p1 *Ge25519, s1, s2 *modm.Bignum256) {
 
 	abs := func(n int8) int {
 		if n < 0 {
-			return int(-n)
+			return -int(n)
 		}
 		return int(n)
 	}
