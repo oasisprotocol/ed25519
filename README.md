@@ -91,7 +91,6 @@ more of the stated reasons.
 
 #### TODO
 
- * Tons of review.
  * Wait for the compiler to inline functions more intelligently.
  * Wait for the compiler to provide `math/bits` SSA special cases on
    more architectures.
