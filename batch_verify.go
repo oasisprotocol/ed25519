@@ -110,6 +110,8 @@ func heapUpdatedRoot(heap *batchHeap, limbSize int) {
 	childl := 1
 	childr := 2
 	for childr < heap.size {
+		// Note: The termination check is nominally incorrect, in that
+		// it will fail iff the number of nodes is even (only a left-child).
 		if modm.LessThanVartime(&scalars[pheap[childl]], &scalars[pheap[childr]], limbSize) {
 			node = childr
 		} else {
@@ -131,7 +133,7 @@ func heapUpdatedRoot(heap *batchHeap, limbSize int) {
 	}
 }
 
-// build the heap with count elements, count must be >= 3
+// build the heap with count elements, count must be >= 3 and MUST be odd.
 func heapBuild(heap *batchHeap, count int) {
 	// heap_build(batch_heap *heap, size_t count)
 	heap.heap[0] = 0
@@ -209,7 +211,7 @@ func multiScalarmultVartimeFinal(r, point *ge25519.Ge25519, scalar *modm.Bignum2
 	}
 }
 
-// count must be >= 5
+// count must be >= 5 and MUST be odd.
 func multiScalarmultVartime(r *ge25519.Ge25519, heap *batchHeap, count int) {
 	// ge25519_multi_scalarmult_vartime(ge25519 *r, batch_heap *heap, size_t count)
 
