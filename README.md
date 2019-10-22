@@ -70,6 +70,25 @@ The following issues currently limit performance:
  * (`amd64`) This could use a bigger table, AVX2, etc for even more
    performance.
 
+While sanitizing sensitive values from memory is regarded as good practice,
+Go as currently implemented and specified makes this impossible to do reliably
+for several reasons:
+
+ * The runtime can/will make copies of stack-allocated objects if the stack
+   needs to be grown.
+
+ * There is no `memset_s`/`explicit_bzero` equivalent provided by the runtime
+   library (though Go up to and including 1.13.1 will not optimize out the
+   existing sanitization code).
+
+ * The runtime library's SHA-512 implementation's `Reset()` method does not
+   actually clear the buffer, and calculating the digest via `Sum()` creates
+   a copy of the buffer.
+
+This implementation makes some attempts at sanitization, however this process
+is fragile, and does not currently work in certain locations due to one or
+more of the stated reasons.
+
 #### TODO
 
  * Tons of review.
