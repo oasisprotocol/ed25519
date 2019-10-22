@@ -327,7 +327,9 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
 
-	// `sha512.Sum512` does not call d.Reset().
+	// `sha512.Sum512` does not call d.Reset(), but it's somewhat of a
+	// moot point because the runtime library's SHA-512 implementation's
+	// `Reset()` method doesn't actually clear the buffer currently.
 	var digest [64]byte
 	h := sha512.New()
 	_, _ = h.Write(seed)
