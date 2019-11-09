@@ -182,7 +182,7 @@ func multiScalarmultVartimeFinal(r, point *ge25519.Ge25519, scalar *modm.Bignum2
 	*r = *point
 
 	// find the limb where first bit is set
-	for scalar[limb] != 0 {
+	for scalar[limb] == 0 {
 		limb--
 	}
 
