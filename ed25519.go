@@ -305,17 +305,32 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool
 // not sha512.Size (if pre-hashed), or len(opts.Context) is greater than
 // ContextMaxSize.
 func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) bool {
-	f, context, err := opts.unwrap()
+	ok, err := verifyWithOptionsNoPanic(publicKey, message, sig, opts)
 	if err != nil {
 		panic(err)
+	}
+
+	return ok
+}
+
+func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Options) (bool, error) {
+	f, context, err := opts.unwrap()
+	if err != nil {
+		return false, err
 	}
 
 	f, err = checkHash(f, message, opts.HashFunc())
 	if err != nil {
-		panic(err)
+		return false, err
 	}
 
-	return verify(publicKey, message, sig, f, context)
+	// verify will panic (for api compatibility with the runtime
+	// package), so do the check before calling the routine.
+	if l := len(publicKey); l != PublicKeySize {
+		return false, errors.New("ed25519: bad public key length: " + strconv.Itoa(l))
+	}
+
+	return verify(publicKey, message, sig, f, context), nil
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if

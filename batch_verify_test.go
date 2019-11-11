@@ -30,6 +30,7 @@ package ed25519
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
@@ -45,6 +46,9 @@ const (
 	batchWrongMessage
 	batchWrongPk
 	batchWrongSig
+	batchMalformedPk
+	batchMalformedSig
+	batchMalformedPh
 
 	batchCount    = 64
 	badBatchCount = maxBatchSize + 1
@@ -56,7 +60,7 @@ var batchVerifyY = [32]byte{
 	0x1b, 0x95, 0xdb, 0xbe, 0x66, 0x59, 0x29, 0x3b, 0x94, 0x51, 0x2f, 0xbc, 0x0d, 0x66, 0xba, 0x3f,
 }
 
-func testBatchInit(tb testing.TB, r io.Reader, batchSize int) ([]PublicKey, [][]byte, [][]byte) {
+func testBatchInit(tb testing.TB, r io.Reader, batchSize int, opts *Options) ([]PublicKey, [][]byte, [][]byte) {
 	sks := make([]PrivateKey, batchSize)
 	pks := make([]PublicKey, batchSize)
 	sigs := make([][]byte, batchSize)
@@ -82,18 +86,29 @@ func testBatchInit(tb testing.TB, r io.Reader, batchSize int) ([]PublicKey, [][]
 		}
 		mLen := (i & 127) + 1
 		messages[i] = m[:mLen]
+
+		// Pre-hash the message if required.
+		if opts.Hash != crypto.Hash(0) {
+			h := opts.Hash.New()
+			_, _ = h.Write(messages[i])
+			messages[i] = h.Sum(nil)
+		}
 	}
 
 	// sign messages
 	for i := 0; i < batchSize; i++ {
-		sigs[i] = Sign(sks[i], messages[i])
+		sig, err := sks[i].Sign(nil, messages[i], opts)
+		if err != nil {
+			tb.Fatalf("failed to generate signature #%d: %v", i, err)
+		}
+		sigs[i] = sig
 	}
 
 	return pks, sigs, messages
 }
 
-func testBatchInstance(t *testing.T, tst batchTest, r io.Reader, batchSize int) {
-	pks, sigs, messages := testBatchInit(t, r, batchSize)
+func testBatchInstance(t *testing.T, tst batchTest, r io.Reader, batchSize int, opts *Options) {
+	pks, sigs, messages := testBatchInit(t, r, batchSize, opts)
 
 	// mess things up (if required)
 	var expectedRet bool
@@ -106,17 +121,23 @@ func testBatchInstance(t *testing.T, tst batchTest, r io.Reader, batchSize int) 
 		pks[0] = pks[1]
 	case batchWrongSig:
 		sigs[0] = sigs[1]
+	case batchMalformedPk:
+		pks[0] = []byte("truncated pk")
+	case batchMalformedSig:
+		sigs[0] = []byte("truncated sig")
+	case batchMalformedPh:
+		messages[0] = []byte("bad digest")
 	}
 
-	// Ensure the 0th signature verification will actually fail.
-	sigOk := Verify(pks[0], messages[0], sigs[0])
+	// Ensure the 0th signature verification done singularly, gives
+	// the expected result.
+	sigOk, _ := verifyWithOptionsNoPanic(pks[0], messages[0], sigs[0], opts)
 	if sigOk != expectedRet {
 		t.Fatalf("failed to force failure: %v", tst)
 	}
 
 	// verify the batch
-	var opts Options
-	ok, valid, err := VerifyBatch(r, pks[:], messages[:], sigs[:], &opts)
+	ok, valid, err := VerifyBatch(r, pks[:], messages[:], sigs[:], opts)
 	if err != nil {
 		t.Fatalf("failed to verify batch: %v", err)
 	}
@@ -140,36 +161,81 @@ func testBatchInstance(t *testing.T, tst batchTest, r io.Reader, batchSize int) 
 	}
 }
 
-func TestVerifyBatch(t *testing.T) {
-	testBatchSaveY = true
-
+func testVerifyBatchOpts(t *testing.T, opts *Options) {
 	var drbg isaacpDrbg
-	t.Run("NoErrors", func(t *testing.T) { testBatchInstance(t, batchNoErrors, &drbg, batchCount) })
-	if !bytes.Equal(batchVerifyY[:], testBatchY[:]) {
+	t.Run("NoErrors", func(t *testing.T) {
+		testBatchInstance(t, batchNoErrors, &drbg, batchCount, opts)
+	})
+
+	// This check will only make sense with the Ed25519pure test.
+	if testBatchSaveY && !bytes.Equal(batchVerifyY[:], testBatchY[:]) {
 		t.Fatalf("unexpected final y coordinate: %v (expected: %v)", hex.EncodeToString(testBatchY[:]), hex.EncodeToString(batchVerifyY[:]))
 	}
 
 	const nrFailTestRuns = 4
 	t.Run("WrongMessage", func(t *testing.T) {
 		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchWrongMessage, rand.Reader, badBatchCount)
+			testBatchInstance(t, batchWrongMessage, rand.Reader, minBatchSize-1, opts)
+			testBatchInstance(t, batchWrongMessage, rand.Reader, badBatchCount, opts)
 		}
 	})
 	t.Run("WrongPublicKey", func(t *testing.T) {
 		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchWrongPk, rand.Reader, badBatchCount)
+			testBatchInstance(t, batchWrongPk, rand.Reader, minBatchSize-1, opts)
+			testBatchInstance(t, batchWrongPk, rand.Reader, badBatchCount, opts)
 		}
 	})
 	t.Run("WrongSignature", func(t *testing.T) {
 		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchWrongSig, rand.Reader, badBatchCount)
+			testBatchInstance(t, batchWrongSig, rand.Reader, minBatchSize-1, opts)
+			testBatchInstance(t, batchWrongSig, rand.Reader, badBatchCount, opts)
 		}
+	})
+	t.Run("MalformedPublicKey", func(t *testing.T) {
+		for i := 0; i < nrFailTestRuns; i++ {
+			testBatchInstance(t, batchMalformedPk, rand.Reader, minBatchSize-1, opts)
+			testBatchInstance(t, batchMalformedPk, rand.Reader, badBatchCount, opts)
+		}
+	})
+	t.Run("MalformedSignature", func(t *testing.T) {
+		for i := 0; i < nrFailTestRuns; i++ {
+			testBatchInstance(t, batchMalformedSig, rand.Reader, minBatchSize-1, opts)
+			testBatchInstance(t, batchMalformedSig, rand.Reader, badBatchCount, opts)
+		}
+	})
+	if opts.Hash != crypto.Hash(0) {
+		t.Run("MalformedPreHash", func(t *testing.T) {
+			for i := 0; i < nrFailTestRuns; i++ {
+				testBatchInstance(t, batchMalformedPh, rand.Reader, minBatchSize-1, opts)
+				testBatchInstance(t, batchMalformedPh, rand.Reader, badBatchCount, opts)
+			}
+		})
+	}
+}
+
+func TestVerifyBatch(t *testing.T) {
+	t.Run("Ed25519pure", func(t *testing.T) {
+		testBatchSaveY = true
+		testVerifyBatchOpts(t, &Options{})
+	})
+	t.Run("Ed25519ctx", func(t *testing.T) {
+		testBatchSaveY = false
+		testVerifyBatchOpts(t, &Options{
+			Context: "test ed25519ctx batch verify",
+		})
+	})
+	t.Run("Ed25519ph", func(t *testing.T) {
+		testBatchSaveY = false
+		testVerifyBatchOpts(t, &Options{
+			Hash:    crypto.SHA512,
+			Context: "test ed25519ph batch verify",
+		})
 	})
 }
 
 func BenchmarkVerifyBatch64(b *testing.B) {
 	var opts Options
-	pks, sigs, messages := testBatchInit(b, rand.Reader, batchCount)
+	pks, sigs, messages := testBatchInit(b, rand.Reader, batchCount, &opts)
 	testBatchSaveY = false
 	b.ResetTimer()
 
