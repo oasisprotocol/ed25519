@@ -34,7 +34,6 @@ import (
 	"crypto/sha512"
 	"errors"
 	"io"
-	"strconv"
 
 	"github.com/oasislabs/ed25519/internal/curve25519"
 	"github.com/oasislabs/ed25519/internal/ge25519"
@@ -44,6 +43,7 @@ import (
 // Upstream: `ed25519-donna-batchverify.h`
 
 const (
+	minBatchSize  = 4
 	maxBatchSize  = 64
 	heapBatchSize = (maxBatchSize * 2) + 1
 
@@ -269,8 +269,12 @@ func isNeutralVartime(p *ge25519.Ge25519) bool {
 
 // VerifyBatch reports whether sigs are valid signatures of messages by
 // publicKeys, using entropy from rand.  If rand is nil, crypto/rand.Reader
-// will be used.  For convenience, the function will return `true` iff
+// will be used.  For convenience, the function will return true iff
 // every single signature is valid.
+//
+// Note: Unlike VerifyWithOptions, this routine will not panic on malformed
+// inputs in the batch, and instead just mark the particular signature as
+// having failed verification.
 func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte, opts *Options) (bool, []bool, error) {
 	f, context, err := opts.unwrap()
 	if err != nil {
@@ -307,10 +311,17 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		return 1
 	}
 
-	for num > 3 {
+	for num >= minBatchSize {
 		var batchSize = maxBatchSize
 		if num < maxBatchSize {
 			batchSize = num
+		}
+
+		var batchOk = true
+		failBatch := func(index int) {
+			ret |= 4             // >= 1 signatures in the batch failed
+			valid[index] = false // and the failures incude signature[index]
+			batchOk = false      // and we should use the fallback path
 		}
 
 		// generate r (scalars[batchsize+1]..scalars[2*batchsize]
@@ -324,11 +335,10 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 		// compute scalars[0] = ((r1s1 + r2s2 + ...))
 		for i := 0; i < batchSize; i++ {
-			// This could fail the individual signature instead, but
-			// really, the only reason this check is even required is
-			// to prevent crashing if the caller is an idiot.
+			// The signature should be sized correctly as a signature.
 			if l := len(sigs[i+offset]); l != SignatureSize {
-				return false, nil, errors.New("ed25519: bad signature length: " + strconv.Itoa(l))
+				failBatch(i + offset)
+				break
 			}
 
 			// https://tools.ietf.org/html/rfc8032#section-5.1.7
@@ -336,8 +346,9 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			// to prevent signature malleability.
 			if !scMinimal(sigs[i+offset][32:]) {
 				// Mark the signature as invalid, ensure that on return,
-				// a failure is indicated, but but do not force the
-				// fallback path.
+				// a failure is indicated, but do not force the fallback
+				// path, since it won't affect the rest of the signatures
+				// in the batch.
 				ret |= 4                // >= 1 signature in the batch failed
 				valid[i+offset] = false // and the failues include this one
 			}
@@ -345,34 +356,40 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			modm.Expand(&batch.scalars[i], sigs[i+offset][32:])
 			modm.Mul(&batch.scalars[i], &batch.scalars[i], &rScalars[i])
 		}
-		for i := 1; i < batchSize; i++ {
-			modm.Add(&batch.scalars[0], &batch.scalars[0], &batch.scalars[i])
-		}
-
-		// compute scalars[1]..scalars[batchsize] as r[i]*H(R[i],A[i],m[i])
-		for i := 0; i < batchSize; i++ {
-			if l := len(publicKeys[i+offset]); l != PublicKeySize {
-				return false, nil, errors.New("ed25519: bad public key length: " + strconv.Itoa(l))
+		if batchOk {
+			for i := 1; i < batchSize; i++ {
+				modm.Add(&batch.scalars[0], &batch.scalars[0], &batch.scalars[i])
 			}
 
-			msg := messages[i+offset]
-			f, err = checkHash(f, msg, opts.HashFunc())
-			if err != nil {
-				return false, nil, err
+			// compute scalars[1]..scalars[batchsize] as r[i]*H(R[i],A[i],m[i])
+			for i := 0; i < batchSize; i++ {
+				// The public key should be sized correctly as a public key.
+				if l := len(publicKeys[i+offset]); l != PublicKeySize {
+					failBatch(i + offset)
+					break
+				}
+
+				// The message should be sized corectly if this is Ed25519ph.
+				msg := messages[i+offset]
+				f, err = checkHash(f, msg, opts.HashFunc())
+				if err != nil {
+					failBatch(i + offset)
+					break
+				}
+
+				if f != fPure {
+					writeDom2(h, f, context)
+				}
+				_, _ = h.Write(sigs[i+offset][:32])
+				_, _ = h.Write(publicKeys[i+offset][:])
+				_, _ = h.Write(messages[i+offset])
+				h.Sum(hash[:0])
+
+				modm.Expand(&batch.scalars[i+1], hash[:])
+				modm.Mul(&batch.scalars[i+1], &batch.scalars[i+1], &rScalars[i])
+
+				h.Reset()
 			}
-
-			if f != fPure {
-				writeDom2(h, f, context)
-			}
-			_, _ = h.Write(sigs[i+offset][:32])
-			_, _ = h.Write(publicKeys[i+offset][:])
-			_, _ = h.Write(messages[i+offset])
-			h.Sum(hash[:0])
-
-			modm.Expand(&batch.scalars[i+1], hash[:])
-			modm.Mul(&batch.scalars[i+1], &batch.scalars[i+1], &rScalars[i])
-
-			h.Reset()
 		}
 
 		// compute points
@@ -390,24 +407,29 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			}
 			return true
 		}
-		ok := computePoints()
-
-		if ok {
-			multiScalarmultVartime(&p, &batch, (batchSize*2)+1)
-			if ok = isNeutralVartime(&p); !ok {
-				ret |= 2
+		if batchOk {
+			if batchOk = computePoints(); batchOk {
+				multiScalarmultVartime(&p, &batch, (batchSize*2)+1)
+				if batchOk = isNeutralVartime(&p); !batchOk {
+					ret |= 2
+				}
 			}
 		}
 
 		// fallback
-		if !ok {
+		if !batchOk {
 			for i := 0; i < batchSize; i++ {
 				// If the signature is already tagged as invalid (s was out
-				// of range according to the IETF), there's no need to call
-				// into Verify.
+				// of range according to the IETF, inputs were malformed,
+				// etc), there's no need to call into VerifyWithOptions.
+				//
+				// The NoPanic internal helper is used because, while we
+				// explicitly fail the first malformed input we detect,
+				// we also bypass examining the rest of the batch, and
+				// skip to the fallback path.
 				sigOk := valid[i+offset]
 				if sigOk {
-					sigOk = Verify(publicKeys[i+offset], messages[i+offset], sigs[i+offset])
+					sigOk, _ = verifyWithOptionsNoPanic(publicKeys[i+offset], messages[i+offset], sigs[i+offset], opts)
 					valid[i+offset] = sigOk
 				}
 				ret |= boolToRet(sigOk)
@@ -419,7 +441,9 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 	}
 
 	for i := 0; i < num; i++ {
-		sigOk := Verify(publicKeys[i+offset], messages[i+offset], sigs[i+offset])
+		// The NoPanic internal helper is used because the routine is
+		// intended to be tolerant of malformed inputs in a batch.
+		sigOk, _ := verifyWithOptionsNoPanic(publicKeys[i+offset], messages[i+offset], sigs[i+offset], opts)
 		valid[i+offset] = sigOk
 		ret |= boolToRet(sigOk)
 	}
