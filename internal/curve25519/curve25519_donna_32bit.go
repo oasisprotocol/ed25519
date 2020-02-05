@@ -26,10 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build !amd64
-// +build !go1.13,arm64
-// +build !go1.13,ppc64le
-// +build !go1.13,ppc64
+// +build 386 arm !go1.13,arm64 !go1.13,ppc64le !go1.13,ppc64 mips mipsle mips64le mips64 s390x
 
 package curve25519
 
