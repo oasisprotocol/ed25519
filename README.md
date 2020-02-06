@@ -62,10 +62,10 @@ The following issues currently limit performance:
 
    See `go/src/cmd/compile/internal/gc/ssa.go`.
 
- * (All, except `amd64`, `386`, `ppc64le`) Key generation and signing
-   performance will be hampered by the use of `subtle.ConstantTimeCopy`.
-   This is easy to fix on a per-architecture basis.  See
-   `internal/ge25519/movecond_[slow,unsafe].go`.
+ * (All, except `amd64`) Key generation and signing performance will be
+   hampered by the way `subtle.ConstantTimeCopy` is re-implemented for
+   better performance.  This is easy to fix on a per-architecture basis.
+   See `internal/ge25519/movecond_[slow,unsafe].go`.
 
  * (`amd64`) This could use a bigger table, AVX2, etc for even more
    performance.
