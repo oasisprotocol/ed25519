@@ -33,11 +33,13 @@
 package x25519
 
 import (
+	"crypto/sha512"
 	"crypto/subtle"
 	"fmt"
 
 	xcurve "golang.org/x/crypto/curve25519"
 
+	"github.com/oasislabs/ed25519"
 	"github.com/oasislabs/ed25519/internal/curve25519"
 	"github.com/oasislabs/ed25519/internal/ge25519"
 	"github.com/oasislabs/ed25519/internal/modm"
@@ -152,6 +154,67 @@ func checkBasepoint() {
 	}) != 1 {
 		panic("curve25519: global Basepoint value was modified")
 	}
+}
+
+// EdPrivateKeyToX25519 converts an Ed25519 private key into a corresponding
+// X25519 private key such that the resulting X25519 public key will equal
+// the result from EdPublicKeyToX25519.
+func EdPrivateKeyToX25519(privateKey ed25519.PrivateKey) []byte {
+	h := sha512.New()
+	_, _ = h.Write(privateKey[:32])
+	digest := h.Sum(nil)
+	h.Reset()
+
+	digest[0] &= 248
+	digest[31] &= 127
+	digest[31] |= 64
+
+	dst := make([]byte, ScalarSize)
+	copy(dst, digest)
+
+	return dst
+}
+
+func curve25519One(z *curve25519.Bignum25519) {
+	z.Reset()
+	z[0] = 1
+}
+
+func edwardsToMontgomeryX(outX, y *curve25519.Bignum25519) {
+	// We only need the x-coordinate of the curve25519 point, which I'll
+	// call u. The isomorphism is u=(y+1)/(1-y), since y=Y/Z, this gives
+	// u=(Y+Z)/(Z-Y). We know that Z=1, thus u=(Y+1)/(1-Y).
+	var oneMinusY curve25519.Bignum25519
+	curve25519One(&oneMinusY)
+	curve25519.Sub(&oneMinusY, &oneMinusY, y)
+	curve25519.Recip(&oneMinusY, &oneMinusY)
+
+	curve25519One(outX)
+	curve25519.Add(outX, outX, y)
+
+	curve25519.Mul(outX, outX, &oneMinusY)
+}
+
+// EdPublicKeyToX25519 converts an Ed25519 public key into the X25519 public
+// key that would be generated from the same private key.
+func EdPublicKeyToX25519(publicKey ed25519.PublicKey) ([]byte, bool) {
+	// Negate a copy of the public key, due to UnpackNegativeVartime.
+	var pkCopy [32]byte
+	copy(pkCopy[:], publicKey)
+	pkCopy[31] ^= (1 << 7)
+
+	var A ge25519.Ge25519
+	if !ge25519.UnpackNegativeVartime(&A, pkCopy[:]) {
+		return nil, false
+	}
+
+	// A.Z = 1 as a postcondition of UnpackNegativeVartime.
+	var x curve25519.Bignum25519
+	edwardsToMontgomeryX(&x, A.Y())
+	dst := make([]byte, PointSize)
+	curve25519.Contract(dst, &x)
+
+	return dst, true
 }
 
 func init() {

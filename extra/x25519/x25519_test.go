@@ -34,6 +34,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"testing"
+
+	"github.com/oasislabs/ed25519"
 )
 
 const expectedHex = "89161fde887b2b53de549af483940106ecc114d6982daa98256de23bdf77661a"
@@ -113,5 +115,24 @@ func TestLowOrderPoints(t *testing.T) {
 		if out != nil {
 			t.Errorf("%d: expected nil output, got %x", i, out)
 		}
+	}
+}
+
+func TestX25519Conversion(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+
+	xPrivate := EdPrivateKeyToX25519(private)
+	xPublic, err := X25519(xPrivate, Basepoint)
+	if err != nil {
+		t.Errorf("X25519(xPrivate, Basepoint): %v", err)
+	}
+
+	xPublic2, ok := EdPublicKeyToX25519(public)
+	if !ok {
+		t.Errorf("EdPublicKeyToX25519(public): failed")
+	}
+
+	if !bytes.Equal(xPublic, xPublic2) {
+		t.Errorf("Values didn't match: curve25519 produced %x, conversion produced %x", xPublic, xPublic2)
 	}
 }
