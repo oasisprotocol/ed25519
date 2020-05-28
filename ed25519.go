@@ -47,8 +47,8 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/oasislabs/ed25519/internal/ge25519"
-	"github.com/oasislabs/ed25519/internal/modm"
+	"github.com/oasisprotocol/ed25519/internal/ge25519"
+	"github.com/oasisprotocol/ed25519/internal/modm"
 )
 
 const (

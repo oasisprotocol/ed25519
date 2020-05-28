@@ -33,7 +33,7 @@ package modm
 import (
 	"encoding/binary"
 
-	"github.com/oasislabs/ed25519/internal/uint128"
+	"github.com/oasisprotocol/ed25519/internal/uint128"
 )
 
 const (

@@ -1,5 +1,13 @@
 ### ed25519 - Optimized ed25519 for Go
 
+[![Build status][github-ci-tests-badge]][github-ci-tests-link]
+[![GoDoc][godoc-badge]][godoc-link]
+
+[github-ci-tests-badge]: https://github.com/oasisprotocol/ed25519/workflows/ci-tests/badge.svg
+[github-ci-tests-link]: https://github.com/oasisprotocol/ed25519/actions?query=workflow:ci-tests
+[godoc-badge]: https://godoc.org/github.com/oasisprotocol/ed25519?status.svg
+[godoc-link]: https://godoc.org/github.com/oasisprotocol/ed25519
+
 This package provides a drop-in replacement for `golang.org/x/crypto/ed25519`
 with the aim to improve performance, primarily on systems with a low cost
 `64 bit x 64 bit = 128 bit` multiply operation.

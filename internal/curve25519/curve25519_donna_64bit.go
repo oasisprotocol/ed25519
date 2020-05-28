@@ -33,7 +33,7 @@ package curve25519
 import (
 	"encoding/binary"
 
-	"github.com/oasislabs/ed25519/internal/uint128"
+	"github.com/oasisprotocol/ed25519/internal/uint128"
 )
 
 // Upstream: `curve25519-donna-64bit.h`
