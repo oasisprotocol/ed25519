@@ -1,4 +1,4 @@
-module github.com/oasislabs/ed25519
+module github.com/oasisprotocol/ed25519
 
 go 1.12
 

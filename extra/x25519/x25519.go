@@ -39,10 +39,10 @@ import (
 
 	xcurve "golang.org/x/crypto/curve25519"
 
-	"github.com/oasislabs/ed25519"
-	"github.com/oasislabs/ed25519/internal/curve25519"
-	"github.com/oasislabs/ed25519/internal/ge25519"
-	"github.com/oasislabs/ed25519/internal/modm"
+	"github.com/oasisprotocol/ed25519"
+	"github.com/oasisprotocol/ed25519/internal/curve25519"
+	"github.com/oasisprotocol/ed25519/internal/ge25519"
+	"github.com/oasisprotocol/ed25519/internal/modm"
 )
 
 const (

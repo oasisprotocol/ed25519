@@ -41,7 +41,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oasislabs/ed25519/internal/ge25519"
+	"github.com/oasisprotocol/ed25519/internal/ge25519"
 )
 
 type zeroReader struct{}

@@ -35,7 +35,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/oasislabs/ed25519"
+	"github.com/oasisprotocol/ed25519"
 )
 
 const expectedHex = "89161fde887b2b53de549af483940106ecc114d6982daa98256de23bdf77661a"

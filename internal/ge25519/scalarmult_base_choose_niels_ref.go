@@ -30,7 +30,7 @@
 
 package ge25519
 
-import "github.com/oasislabs/ed25519/internal/curve25519"
+import "github.com/oasisprotocol/ed25519/internal/curve25519"
 
 func windowbEqual(b, c uint32) uint32 {
 	// uint32_t ge25519_windowb_equal(uint32_t b, uint32_t c)

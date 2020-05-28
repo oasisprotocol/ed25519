@@ -30,7 +30,7 @@
 
 package ge25519
 
-import "github.com/oasislabs/ed25519/internal/curve25519"
+import "github.com/oasisprotocol/ed25519/internal/curve25519"
 
 // Upstream: `ed25519-donna-32bit-tables.h`
 
