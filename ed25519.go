@@ -141,6 +141,15 @@ func (priv PrivateKey) Public() crypto.PublicKey {
 	return PublicKey(pub)
 }
 
+// Equal reports whether priv and x have the same value.
+func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(PrivateKey)
+	if !ok {
+		return false
+	}
+	return bytes.Equal(priv, xx)
+}
+
 // Seed returns the private key seed corresponding to priv. It is provided for
 // interoperability with RFC 8032. RFC 8032's private keys correspond to seeds
 // in this package.
@@ -177,6 +186,18 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 
 // PublicKey is the type of Ed25519 public keys.
 type PublicKey []byte
+
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
+
+// Equal reports whether pub and x have the same value.
+func (pub PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(PublicKey)
+	if !ok {
+		return false
+	}
+	return bytes.Equal(pub, xx)
+}
 
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
