@@ -55,8 +55,10 @@ const (
 	mu4 uint64 = 0x00000fffffffff
 )
 
-type Element uint64
-type Bignum256 [5]Element
+type (
+	Element   uint64
+	Bignum256 [5]Element
+)
 
 func ltModM(a, b Element) Element {
 	// bignum256modm_element_t lt_modm(bignum256modm_element_t a, bignum256modm_element_t b)

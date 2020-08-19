@@ -61,7 +61,7 @@ var curved25519Expected = [32]byte{
 }
 
 func TestScalarBaseMult(t *testing.T) {
-	var csk = [2][32]byte{
+	csk := [2][32]byte{
 		{255},
 	}
 

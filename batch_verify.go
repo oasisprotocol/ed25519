@@ -312,12 +312,12 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 	}
 
 	for num >= minBatchSize {
-		var batchSize = maxBatchSize
+		batchSize := maxBatchSize
 		if num < maxBatchSize {
 			batchSize = num
 		}
 
-		var batchOk = true
+		batchOk := true
 		failBatch := func(index int) {
 			ret |= 4             // >= 1 signatures in the batch failed
 			valid[index] = false // and the failures incude signature[index]

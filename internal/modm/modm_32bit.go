@@ -57,8 +57,10 @@ const (
 	mu8 uint32 = 0x000fffff
 )
 
-type Element uint32
-type Bignum256 [9]Element
+type (
+	Element   uint32
+	Bignum256 [9]Element
+)
 
 func ltModM(a, b Element) Element {
 	return (a - b) >> 31
