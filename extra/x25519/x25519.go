@@ -198,13 +198,8 @@ func edwardsToMontgomeryX(outX, y *curve25519.Bignum25519) {
 // EdPublicKeyToX25519 converts an Ed25519 public key into the X25519 public
 // key that would be generated from the same private key.
 func EdPublicKeyToX25519(publicKey ed25519.PublicKey) ([]byte, bool) {
-	// Negate a copy of the public key, due to UnpackNegativeVartime.
-	var pkCopy [32]byte
-	copy(pkCopy[:], publicKey)
-	pkCopy[31] ^= (1 << 7)
-
 	var A ge25519.Ge25519
-	if !ge25519.UnpackNegativeVartime(&A, pkCopy[:]) {
+	if !ge25519.UnpackVartime(&A, publicKey[:]) {
 		return nil, false
 	}
 

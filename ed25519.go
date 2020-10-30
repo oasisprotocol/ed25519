@@ -84,6 +84,10 @@ type Options struct {
 	// Warning: If Hash is crypto.Hash(0) and Context is a zero length
 	// string, plain Ed25519 will be used instead of Ed25519ctx.
 	Context string
+
+	// ZIP215Verify specifies that verification should follow Zcash's
+	// ZIP-215 semantics.
+	ZIP215Verify bool
 }
 
 // HashFunc returns an identifier for the hash function used to produce
@@ -199,6 +203,16 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 	return bytes.Equal(pub, xx)
 }
 
+// IsSmallOrder returns true iff a Public Key is a small order point.
+// This routine will panic if the public key length is invalid.
+func (pub PublicKey) IsSmallOrder() bool {
+	if l := len(pub); l != PublicKeySize {
+		panic("ed25519: bad public key length: " + strconv.Itoa(l))
+	}
+
+	return isSmallOrderVartime(pub)
+}
+
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
@@ -272,19 +286,23 @@ func sign(privateKey PrivateKey, message []byte, f dom2Flag, c []byte) []byte {
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
-	return verify(publicKey, message, sig, fPure, nil)
+	return verify(publicKey, message, sig, fPure, nil, false)
 }
 
-func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool {
+func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte, zip215 bool) bool {
 	if l := len(publicKey); l != PublicKeySize {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
 
+	// Reject small order A to make the scheme strongly binding.
+	if !zip215 && isSmallOrderVartime(publicKey) {
+		return false
+	}
+
 	var (
-		hash    [64]byte
-		checkR  [32]byte
-		R, A    ge25519.Ge25519
-		hram, S modm.Bignum256
+		hash                [64]byte
+		Rproj, R, A, checkR ge25519.Ge25519
+		hram, S             modm.Bignum256
 	)
 
 	if len(sig) != SignatureSize || (sig[63]&224 != 0) || !ge25519.UnpackNegativeVartime(&A, publicKey) {
@@ -308,15 +326,19 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool
 		return false
 	}
 
+	if !ge25519.UnpackVartime(&checkR, sig[:32]) {
+		return false
+	}
+
 	// S
 	modm.Expand(&S, sig[32:])
 
 	// SB - H(R,A,m)A
-	ge25519.DoubleScalarmultVartime(&R, &A, &hram, &S)
-	ge25519.Pack(checkR[:], &R)
+	ge25519.DoubleScalarmultVartime(&Rproj, &A, &hram, &S)
+	ge25519.ProjectiveToExtended(&R, &Rproj)
 
-	// check that R = SB - H(R,A,m)A
-	return bytes.Equal(checkR[:], sig[:32])
+	// check that [8](R - (SB - H(R,A,m)A)) == 0
+	return ge25519.CofactorEqual(&R, &checkR)
 }
 
 // VerifyWithOptions reports whether sig is a valid Ed25519 signature by
@@ -351,7 +373,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 		return false, errors.New("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
 
-	return verify(publicKey, message, sig, f, context), nil
+	return verify(publicKey, message, sig, f, context, opts.ZIP215Verify), nil
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if
@@ -426,6 +448,16 @@ var order = [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000
 // scMinimal returns true if the given scalar is less than the order of the
 // curve.
 func scMinimal(scalar []byte) bool {
+	if scalar[31]&240 == 0 {
+		// 4 most significant bits unset, succeed fast
+		return true
+	}
+	if scalar[31]&244 != 0 {
+		// Any of the 3 most significant bits set, fail fast
+		return false
+	}
+
+	// 4th most significant bit set (unlikely), actually check vs order
 	for i := 3; ; i-- {
 		v := binary.LittleEndian.Uint64(scalar[i*8:])
 		if v > order[i] {
@@ -438,6 +470,18 @@ func scMinimal(scalar []byte) bool {
 	}
 
 	return true
+}
+
+func isSmallOrderVartime(s []byte) bool {
+	var t1, t2 ge25519.Ge25519
+
+	if !ge25519.UnpackVartime(&t1, s) {
+		panic("ed25519/isSmallOrderVartime: failed to unpack")
+	}
+
+	ge25519.CofactorMultiply(&t2, &t1)
+
+	return ge25519.IsNeutralVartime(&t2)
 }
 
 type dom2Flag byte
