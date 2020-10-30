@@ -60,6 +60,21 @@ var speccheckExpectedResults = []bool{
 	false, // 11: non-canonical small order A, mixed order R (accepted if A not reduced before hashing)
 }
 
+var speccheckExpectedResultsZIP215 = []bool{
+	true,  // 0: small order A, small order R
+	true,  // 1: small order A, mixed order R
+	true,  // 2: mixed order A, small order R
+	true,  // 3: mixed order A, mixed order R
+	true,  // 4: cofactored verify
+	true,  // 5: cofactored verify computes 8(hA) instead of (8h mod L)A
+	false, // 6: non-canonical S (S > L)
+	false, // 7: non-canonical S (S >> L)
+	false, // 8: mixed order A, non-canonical small order R (accepted if R reduced before hashing)
+	true,  // 9: mixed order A, non-canonical small order R (accepted if R not reduced before hashing)
+	true,  // 10: non-canonical small order A, mixed order R (accepted if A reduced before hashing)
+	true,  // 11: non-canonical small order A, mixed order R (accepted if A not reduced before hashing)
+}
+
 type speccheckTestVector struct {
 	Message   string `json:"message"`
 	PublicKey string `json:"pub_key"`
@@ -93,16 +108,20 @@ func (v *speccheckTestVector) toComponents() ([]byte, PublicKey, []byte, error) 
 	return msg, pk, sig, nil
 }
 
-func (v *speccheckTestVector) Run(t *testing.T, isBatch bool) bool {
+func (v *speccheckTestVector) Run(t *testing.T, isBatch, isZIP215 bool) bool {
 	msg, pk, sig, err := v.toComponents()
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	opts := &Options{
+		ZIP215Verify: isZIP215,
+	}
+
 	var sigOk bool
 	switch isBatch {
 	case false:
-		sigOk = Verify(pk, msg, sig)
+		sigOk = VerifyWithOptions(pk, msg, sig, opts)
 	case true:
 		var pks []PublicKey
 		var sigs, msgs [][]byte
@@ -113,7 +132,7 @@ func (v *speccheckTestVector) Run(t *testing.T, isBatch bool) bool {
 		}
 
 		var valid []bool
-		sigOk, valid, err = VerifyBatch(rand.Reader, pks, msgs, sigs, &Options{})
+		sigOk, valid, err = VerifyBatch(rand.Reader, pks, msgs, sigs, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -148,15 +167,27 @@ func TestSpeccheck(t *testing.T) {
 
 	for idx, tc := range testVectors {
 		n := fmt.Sprintf("TestCase_%d", idx)
+		expected := speccheckExpectedResults[idx]
 		t.Run(n, func(t *testing.T) {
-			sigOk := tc.Run(t, false)
-			if expected := speccheckExpectedResults[idx]; expected != sigOk {
+			if sigOk := tc.Run(t, false, false); sigOk != expected {
 				t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 			}
 		})
 		t.Run(n+"_Batch", func(t *testing.T) {
-			sigOk := tc.Run(t, true)
-			if expected := speccheckExpectedResults[idx]; expected != sigOk {
+			if sigOk := tc.Run(t, true, false); sigOk != expected {
+				t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
+			}
+		})
+
+		expected = speccheckExpectedResultsZIP215[idx]
+		n = n + "_ZIP215"
+		t.Run(n, func(t *testing.T) {
+			if sigOk := tc.Run(t, false, true); sigOk != expected {
+				t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
+			}
+		})
+		t.Run(n+"_Batch", func(t *testing.T) {
+			if sigOk := tc.Run(t, true, true); sigOk != expected {
 				t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 			}
 		})

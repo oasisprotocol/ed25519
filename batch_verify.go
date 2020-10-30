@@ -369,7 +369,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 					break
 				}
 				// Reject small order A to make the scheme strongly binding.
-				if isSmallOrderVartime(publicKeys[i+offset]) {
+				if !opts.ZIP215Verify && isSmallOrderVartime(publicKeys[i+offset]) {
 					failBatch(i + offset)
 					break
 				}

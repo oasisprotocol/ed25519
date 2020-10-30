@@ -84,6 +84,10 @@ type Options struct {
 	// Warning: If Hash is crypto.Hash(0) and Context is a zero length
 	// string, plain Ed25519 will be used instead of Ed25519ctx.
 	Context string
+
+	// ZIP215Verify specifies that verification should follow Zcash's
+	// ZIP-215 semantics.
+	ZIP215Verify bool
 }
 
 // HashFunc returns an identifier for the hash function used to produce
@@ -282,16 +286,16 @@ func sign(privateKey PrivateKey, message []byte, f dom2Flag, c []byte) []byte {
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
-	return verify(publicKey, message, sig, fPure, nil)
+	return verify(publicKey, message, sig, fPure, nil, false)
 }
 
-func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool {
+func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte, zip215 bool) bool {
 	if l := len(publicKey); l != PublicKeySize {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
 
 	// Reject small order A to make the scheme strongly binding.
-	if isSmallOrderVartime(publicKey) {
+	if !zip215 && isSmallOrderVartime(publicKey) {
 		return false
 	}
 
@@ -369,7 +373,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 		return false, errors.New("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
 
-	return verify(publicKey, message, sig, f, context), nil
+	return verify(publicKey, message, sig, f, context, opts.ZIP215Verify), nil
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if

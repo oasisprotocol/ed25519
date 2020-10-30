@@ -25,6 +25,7 @@ functionality.
  * Batch signature verification.
  * Faster X25519 key generation (`extra/x25519`).
  * Support for RFC 8032 Ed25519ph, Ed25519ctx.
+ * Optional support for [ZIP-215][3] verification semantics.
 
 #### Benchmarks
 
@@ -52,7 +53,7 @@ between many of the existing implementations, the verification semantics
 are as follows:
 
  * Both iterative and batch verification are cofactored.
- * Small order A is rejected.
+ * Small order A is rejected (Optional and default).
  * Small order R is accepted.
  * A signature's scalar component must be in canonical form (S < L).
  * Non-canonical A is accepted.
@@ -125,3 +126,4 @@ more of the stated reasons.
 
 [1]: https://github.com/floodyberry/ed25519-donna
 [2]: https://bearssl.org/ctmul.html
+[3]: https://zips.z.cash/zip-0215
