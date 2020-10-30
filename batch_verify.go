@@ -257,13 +257,20 @@ func isNeutralVartime(p *ge25519.Ge25519) bool {
 	// static int ge25519_is_neutral_vartime(const ge25519 *p)
 	var zero [32]byte
 	var pointBuffer [3][32]byte
-	curve25519.Contract(pointBuffer[0][:], p.X())
-	curve25519.Contract(pointBuffer[1][:], p.Y())
-	curve25519.Contract(pointBuffer[2][:], p.Z())
 	if testBatchSaveY {
 		// Save off the final Y coord if we are testing the batch verification.
+		curve25519.Contract(pointBuffer[1][:], p.Y())
 		copy(testBatchY[:], pointBuffer[1][:])
 	}
+
+	// Multiply by the cofactor.
+	var q ge25519.Ge25519
+	ge25519.CofactorMultiply(&q, p)
+	curve25519.Contract(pointBuffer[0][:], q.X())
+	curve25519.Contract(pointBuffer[1][:], q.Y())
+	curve25519.Contract(pointBuffer[2][:], q.Z())
+
+	// Check against the identity point (neutral element).
 	return bytes.Equal(pointBuffer[0][:], zero[:]) && bytes.Equal(pointBuffer[1][:], pointBuffer[2][:])
 }
 

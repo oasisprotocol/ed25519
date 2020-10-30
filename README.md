@@ -8,9 +8,10 @@
 [godoc-badge]: https://godoc.org/github.com/oasisprotocol/ed25519?status.svg
 [godoc-link]: https://godoc.org/github.com/oasisprotocol/ed25519
 
-This package provides a drop-in replacement for `golang.org/x/crypto/ed25519`
-with the aim to improve performance, primarily on systems with a low cost
-`64 bit x 64 bit = 128 bit` multiply operation.
+This package provides a mostly drop-in replacement for
+`golang.org/x/crypto/ed25519` with the aim to improve performance,
+primarily on systems with a low cost `64 bit x 64 bit = 128 bit` multiply
+operation.
 
 This implementation is derived from Andrew Moon's [ed25519-donna][1],
 and is intended to be timing side-channel safe on [most architectures][2].
@@ -43,6 +44,18 @@ BenchmarkScalarBaseMult-4    80279         44429         -44.66%   (X25519)
 Batch verification on the same system takes approximately `5082764 ns`
 to process a 64 signature batch using the `crypto/rand` entropy source
 for roughly `79418 ns` per signature in the batch.
+
+#### Verification semantics
+
+As this is slightly different from upstream, and is a point of divergence
+between many of the existing implementations, the verification semantics
+are as follows:
+
+ * Both iterative and batch verification are cofactored.
+ * No checks of small-order components are done (may change).
+ * A signature's scalar component must be in canonical form (S < L).
+ * Non-canonical A is accepted.
+ * Non-canonical R is accepted.
 
 #### Notes
 

@@ -359,6 +359,15 @@ func UnpackNegativeVartime(r *Ge25519, p []byte) bool {
 	return true
 }
 
+func UnpackVartime(r *Ge25519, p []byte) bool {
+	// Negate a copy of p, so we can call UnpackNegativeVartime.
+	var pCopy [32]byte
+	copy(pCopy[:], p)
+	pCopy[31] ^= (1 << 7)
+
+	return UnpackNegativeVartime(r, pCopy[:])
+}
+
 //
 // scalarmults
 //

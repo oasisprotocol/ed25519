@@ -281,10 +281,9 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool
 	}
 
 	var (
-		hash    [64]byte
-		checkR  [32]byte
-		R, A    ge25519.Ge25519
-		hram, S modm.Bignum256
+		hash                [64]byte
+		Rproj, R, A, checkR ge25519.Ge25519
+		hram, S             modm.Bignum256
 	)
 
 	if len(sig) != SignatureSize || (sig[63]&224 != 0) || !ge25519.UnpackNegativeVartime(&A, publicKey) {
@@ -308,15 +307,19 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool
 		return false
 	}
 
+	if !ge25519.UnpackVartime(&checkR, sig[:32]) {
+		return false
+	}
+
 	// S
 	modm.Expand(&S, sig[32:])
 
 	// SB - H(R,A,m)A
-	ge25519.DoubleScalarmultVartime(&R, &A, &hram, &S)
-	ge25519.Pack(checkR[:], &R)
+	ge25519.DoubleScalarmultVartime(&Rproj, &A, &hram, &S)
+	ge25519.ProjectiveToExtended(&R, &Rproj)
 
-	// check that R = SB - H(R,A,m)A
-	return bytes.Equal(checkR[:], sig[:32])
+	// check that [8](R - (SB - H(R,A,m)A)) == 0
+	return ge25519.CofactorEqual(&R, &checkR)
 }
 
 // VerifyWithOptions reports whether sig is a valid Ed25519 signature by
