@@ -429,6 +429,16 @@ var order = [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000
 // scMinimal returns true if the given scalar is less than the order of the
 // curve.
 func scMinimal(scalar []byte) bool {
+	if scalar[31] & 240 == 0 {
+		// 4 most significant bits unset, succeed fast
+		return true
+	}
+	if scalar[31] & 244 != 0 {
+		// Any of the 3 most significant bits set, fail fast
+		return false
+	}
+
+	// 4th most significant bit set (unlikely), actually check vs order
 	for i := 3; ; i-- {
 		v := binary.LittleEndian.Uint64(scalar[i*8:])
 		if v > order[i] {
