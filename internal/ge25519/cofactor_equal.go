@@ -81,20 +81,7 @@ func CofactorEqual(p, q *Ge25519) bool {
 	CofactorMultiply(&t3, &t3) // t3 = [8](P-Q)
 
 	// Now we want to check whether the point t3 is the identity.
-	// In projective coordinates this is (X:Y:Z) ~ (0:1:0)
-	// ie. X/Z = 0, Y/Z = 1
-	// <=> X = 0, Y = Z
-
-	var zero [32]byte
-	var xBytes [32]byte
-	var yBytes [32]byte
-	var zBytes [32]byte
-
-	curve25519.Contract(xBytes[:], &t3.x)
-	curve25519.Contract(yBytes[:], &t3.y)
-	curve25519.Contract(zBytes[:], &t3.z)
-
-	return bytes.Equal(zero[:], xBytes[:]) && bytes.Equal(yBytes[:], zBytes[:])
+	return IsNeutralVartime(&t3)
 }
 
 // CofactorMultiply multiplies the full group element by the cofactor (8).
@@ -108,4 +95,22 @@ func CofactorMultiply(r, p *Ge25519) {
 	p1p1ToFull(&t2, &t1) // t2 = [4]P
 	doubleP1p1(&t1, &t2) // t1 = [8]P
 	p1p1ToFull(r, &t1)   // r  = [8]P
+}
+
+// IsNeutralVartime returns true iff the q is the identity point.
+func IsNeutralVartime(q *Ge25519) bool {
+	// In projective coordinates this is (X:Y:Z) ~ (0:1:0)
+	// ie. X/Z = 0, Y/Z = 1
+	// <=> X = 0, Y = Z
+
+	var zero [32]byte
+	var xBytes [32]byte
+	var yBytes [32]byte
+	var zBytes [32]byte
+
+	curve25519.Contract(xBytes[:], &q.x)
+	curve25519.Contract(yBytes[:], &q.y)
+	curve25519.Contract(zBytes[:], &q.z)
+
+	return bytes.Equal(zero[:], xBytes[:]) && bytes.Equal(yBytes[:], zBytes[:])
 }

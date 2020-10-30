@@ -29,7 +29,6 @@
 package ed25519
 
 import (
-	"bytes"
 	cryptorand "crypto/rand"
 	"crypto/sha512"
 	"errors"
@@ -255,23 +254,17 @@ func multiScalarmultVartime(r *ge25519.Ge25519, heap *batchHeap, count int) {
 
 func isNeutralVartime(p *ge25519.Ge25519) bool {
 	// static int ge25519_is_neutral_vartime(const ge25519 *p)
-	var zero [32]byte
-	var pointBuffer [3][32]byte
 	if testBatchSaveY {
 		// Save off the final Y coord if we are testing the batch verification.
-		curve25519.Contract(pointBuffer[1][:], p.Y())
-		copy(testBatchY[:], pointBuffer[1][:])
+		curve25519.Contract(testBatchY[:], p.Y())
 	}
 
 	// Multiply by the cofactor.
 	var q ge25519.Ge25519
 	ge25519.CofactorMultiply(&q, p)
-	curve25519.Contract(pointBuffer[0][:], q.X())
-	curve25519.Contract(pointBuffer[1][:], q.Y())
-	curve25519.Contract(pointBuffer[2][:], q.Z())
 
 	// Check against the identity point (neutral element).
-	return bytes.Equal(pointBuffer[0][:], zero[:]) && bytes.Equal(pointBuffer[1][:], pointBuffer[2][:])
+	return ge25519.IsNeutralVartime(&q)
 }
 
 // VerifyBatch reports whether sigs are valid signatures of messages by
@@ -372,6 +365,11 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			for i := 0; i < batchSize; i++ {
 				// The public key should be sized correctly as a public key.
 				if l := len(publicKeys[i+offset]); l != PublicKeySize {
+					failBatch(i + offset)
+					break
+				}
+				// Reject small order A to make the scheme strongly binding.
+				if isSmallOrderVartime(publicKeys[i+offset]) {
 					failBatch(i + offset)
 					break
 				}

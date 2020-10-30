@@ -52,10 +52,15 @@ between many of the existing implementations, the verification semantics
 are as follows:
 
  * Both iterative and batch verification are cofactored.
- * No checks of small-order components are done (may change).
+ * Small order A is rejected.
+ * Small order R is accepted.
  * A signature's scalar component must be in canonical form (S < L).
  * Non-canonical A is accepted.
  * Non-canonical R is accepted.
+
+Note that subtle differences here can lead to issues in certain use cases,
+in particular systems that require distributed consensus.  Historical
+versions of this package used different semantics.
 
 #### Notes
 

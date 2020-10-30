@@ -199,6 +199,16 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 	return bytes.Equal(pub, xx)
 }
 
+// IsSmallOrder returns true iff a Public Key is a small order point.
+// This routine will panic if the public key length is invalid.
+func (pub PublicKey) IsSmallOrder() bool {
+	if l := len(pub); l != PublicKeySize {
+		panic("ed25519: bad public key length: " + strconv.Itoa(l))
+	}
+
+	return isSmallOrderVartime(pub)
+}
+
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
@@ -278,6 +288,11 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte) bool {
 	if l := len(publicKey); l != PublicKeySize {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
+	}
+
+	// Reject small order A to make the scheme strongly binding.
+	if isSmallOrderVartime(publicKey) {
+		return false
 	}
 
 	var (
@@ -429,11 +444,11 @@ var order = [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000
 // scMinimal returns true if the given scalar is less than the order of the
 // curve.
 func scMinimal(scalar []byte) bool {
-	if scalar[31] & 240 == 0 {
+	if scalar[31]&240 == 0 {
 		// 4 most significant bits unset, succeed fast
 		return true
 	}
-	if scalar[31] & 244 != 0 {
+	if scalar[31]&244 != 0 {
 		// Any of the 3 most significant bits set, fail fast
 		return false
 	}
@@ -451,6 +466,18 @@ func scMinimal(scalar []byte) bool {
 	}
 
 	return true
+}
+
+func isSmallOrderVartime(s []byte) bool {
+	var t1, t2 ge25519.Ge25519
+
+	if !ge25519.UnpackVartime(&t1, s) {
+		panic("ed25519/isSmallOrderVartime: failed to unpack")
+	}
+
+	ge25519.CofactorMultiply(&t2, &t1)
+
+	return ge25519.IsNeutralVartime(&t2)
 }
 
 type dom2Flag byte
