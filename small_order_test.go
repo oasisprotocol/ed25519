@@ -98,9 +98,5 @@ func TestSmallOrderCheck(t *testing.T) {
 		if !isSmallOrderVartime(v[:]) {
 			t.Errorf("point %d should fail small order check", idx)
 		}
-
-		if pub := PublicKey(v[:]); !pub.IsSmallOrder() {
-			t.Errorf("point %d as public key should fail small order check", idx)
-		}
 	}
 }
