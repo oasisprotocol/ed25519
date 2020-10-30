@@ -203,16 +203,6 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 	return bytes.Equal(pub, xx)
 }
 
-// IsSmallOrder returns true iff a Public Key is a small order point.
-// This routine will panic if the public key length is invalid.
-func (pub PublicKey) IsSmallOrder() bool {
-	if l := len(pub); l != PublicKeySize {
-		panic("ed25519: bad public key length: " + strconv.Itoa(l))
-	}
-
-	return isSmallOrderVartime(pub)
-}
-
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
@@ -294,11 +284,6 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte, zip2
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
 
-	// Reject small order A to make the scheme strongly binding.
-	if !zip215 && isSmallOrderVartime(publicKey) {
-		return false
-	}
-
 	var (
 		hash                [64]byte
 		Rproj, R, A, checkR ge25519.Ge25519
@@ -306,6 +291,11 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte, zip2
 	)
 
 	if len(sig) != SignatureSize || (sig[63]&224 != 0) || !ge25519.UnpackNegativeVartime(&A, publicKey) {
+		return false
+	}
+
+	// Reject small order A to make the scheme strongly binding.
+	if !zip215 && isSmallOrderVartime(publicKey) {
 		return false
 	}
 
@@ -476,7 +466,8 @@ func isSmallOrderVartime(s []byte) bool {
 	var t1, t2 ge25519.Ge25519
 
 	if !ge25519.UnpackVartime(&t1, s) {
-		panic("ed25519/isSmallOrderVartime: failed to unpack")
+		// Treat unpack failures as equivalent to small order (invalid A).
+		return true
 	}
 
 	ge25519.CofactorMultiply(&t2, &t1)
