@@ -50,14 +50,14 @@ for roughly `79418 ns` per signature in the batch.
 
 As this is slightly different from upstream, and is a point of divergence
 between many of the existing implementations, the verification semantics
-are as follows:
+are as follows, using terminology from [ed25519-speccheck][4]:
 
  * Both iterative and batch verification are cofactored.
- * Small order A is rejected (Optional and default).
- * Small order R is accepted.
+ * Small order A is rejected by default (Unless ZIP-215 is enabled).
+ * Small order R is rejected by default (Unless ZIP-215 is enabled).
  * A signature's scalar component must be in canonical form (S < L).
- * Non-canonical A is accepted.
- * Non-canonical R is accepted.
+ * Non-canonical A is accepted (A is NOT reduced before hashing).
+ * Non-canonical R is accepted (R is NOT reduced before hashing).
 
 Note that subtle differences here can lead to issues in certain use cases,
 in particular systems that require distributed consensus.  Historical
@@ -127,3 +127,4 @@ more of the stated reasons.
 [1]: https://github.com/floodyberry/ed25519-donna
 [2]: https://bearssl.org/ctmul.html
 [3]: https://zips.z.cash/zip-0215
+[4]: https://github.com/novifinancial/ed25519-speccheck

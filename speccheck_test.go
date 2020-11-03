@@ -48,16 +48,16 @@ import (
 var speccheckExpectedResults = []bool{
 	false, // 0: small order A, small order R
 	false, // 1: small order A, mixed order R
-	true,  // 2: mixed order A, small order R
+	false, // 2: mixed order A, small order R
 	true,  // 3: mixed order A, mixed order R
 	true,  // 4: cofactored verify
 	true,  // 5: cofactored verify computes 8(hA) instead of (8h mod L)A
 	false, // 6: non-canonical S (S > L)
 	false, // 7: non-canonical S (S >> L)
 	false, // 8: mixed order A, non-canonical small order R (accepted if R reduced before hashing)
-	true,  // 9: mixed order A, non-canonical small order R (accepted if R not reduced before hashing)
-	false, // 10: non-canonical small order A, mixed order R (accepted if A reduced before hashing)
-	false, // 11: non-canonical small order A, mixed order R (accepted if A not reduced before hashing)
+	false, // 9: mixed order A, non-canonical small order R (accepted if R not reduced before hashing)
+	false, // 10: non-canonical small order A, mixed order R (accepted if cofactored or A reduced before hashing)
+	false, // 11: non-canonical small order A, mixed order R (accepted if cofactored or A not reduced before hashing)
 }
 
 var speccheckExpectedResultsZIP215 = []bool{
@@ -71,8 +71,8 @@ var speccheckExpectedResultsZIP215 = []bool{
 	false, // 7: non-canonical S (S >> L)
 	false, // 8: mixed order A, non-canonical small order R (accepted if R reduced before hashing)
 	true,  // 9: mixed order A, non-canonical small order R (accepted if R not reduced before hashing)
-	true,  // 10: non-canonical small order A, mixed order R (accepted if A reduced before hashing)
-	true,  // 11: non-canonical small order A, mixed order R (accepted if A not reduced before hashing)
+	true,  // 10: non-canonical small order A, mixed order R (accepted if cofactored or cofactor-less and A reduced before hashing)
+	true,  // 11: non-canonical small order A, mixed order R (accepted if cofactored or cofactor-less and A not reduced before hashing)
 }
 
 type speccheckTestVector struct {
