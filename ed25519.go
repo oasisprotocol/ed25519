@@ -320,6 +320,11 @@ func verify(publicKey PublicKey, message, sig []byte, f dom2Flag, c []byte, zip2
 		return false
 	}
 
+	// Reject small order R.
+	if !zip215 && isSmallOrderVartime(sig[:32]) {
+		return false
+	}
+
 	// S
 	modm.Expand(&S, sig[32:])
 
@@ -466,7 +471,7 @@ func isSmallOrderVartime(s []byte) bool {
 	var t1, t2 ge25519.Ge25519
 
 	if !ge25519.UnpackVartime(&t1, s) {
-		// Treat unpack failures as equivalent to small order (invalid A).
+		// Treat unpack failures as equivalent to small order.
 		return true
 	}
 

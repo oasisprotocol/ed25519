@@ -319,7 +319,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 		batchOk := true
 		failBatch := func(index int) {
-			ret |= 4             // >= 1 signatures in the batch failed
+			ret |= 2             // >= 1 signatures in the batch failed
 			valid[index] = false // and the failures incude signature[index]
 			batchOk = false      // and we should use the fallback path
 		}
@@ -349,7 +349,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 				// a failure is indicated, but do not force the fallback
 				// path, since it won't affect the rest of the signatures
 				// in the batch.
-				ret |= 4                // >= 1 signature in the batch failed
+				ret |= 2                // >= 1 signature in the batch failed
 				valid[i+offset] = false // and the failues include this one
 			}
 
@@ -398,26 +398,32 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		}
 
 		// compute points
-		computePoints := func() bool {
+		if batchOk {
 			batch.points[0] = ge25519.Basepoint
 			for i := 0; i < batchSize; i++ {
 				if !ge25519.UnpackNegativeVartime(&batch.points[i+1], publicKeys[i+offset]) {
-					return false
+					failBatch(i+offset)
+					break
 				}
-			}
-			for i := 0; i < batchSize; i++ {
 				if !ge25519.UnpackNegativeVartime(&batch.points[batchSize+i+1], sigs[i+offset]) {
-					return false
+					failBatch(i+offset)
+					break
+				}
+
+				// Reject small order R.
+				if !opts.ZIP215Verify && isSmallOrderVartime(sigs[i+offset][:32]) {
+					failBatch(i+offset)
+					break
 				}
 			}
-			return true
-		}
-		if batchOk {
-			if batchOk = computePoints(); batchOk {
+
+			if batchOk {
 				multiScalarmultVartime(&p, &batch, (batchSize*2)+1)
-				if batchOk = isNeutralVartime(&p); !batchOk {
-					ret |= 2
-				}
+
+				// No need to mess with ret if the batch verification
+				// fails, since we will iteratively check every single
+				// signature in the batch.
+				batchOk = isNeutralVartime(&p)
 			}
 		}
 
@@ -433,7 +439,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 				// we also bypass examining the rest of the batch, and
 				// skip to the fallback path.
 				sigOk := valid[i+offset]
-				if sigOk {
+				if sigOk { // sigOk being true is the default (unverified) state.
 					sigOk, _ = verifyWithOptionsNoPanic(publicKeys[i+offset], messages[i+offset], sigs[i+offset], opts)
 					valid[i+offset] = sigOk
 				}

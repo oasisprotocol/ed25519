@@ -40,7 +40,7 @@ import (
 
 type zip215TestVector [2]string
 
-func (tc zip215TestVector) Run(t *testing.T, isBatch bool) {
+func (tc zip215TestVector) Run(t *testing.T, isBatch, isZIP215 bool) {
 	msg := []byte("Zcash")
 	rawPk, err := hex.DecodeString(tc[0])
 	if err != nil {
@@ -53,7 +53,7 @@ func (tc zip215TestVector) Run(t *testing.T, isBatch bool) {
 
 	pk := PublicKey(rawPk)
 	opts := &Options{
-		ZIP215Verify: true,
+		ZIP215Verify: isZIP215,
 	}
 
 	var sigOk bool
@@ -81,7 +81,9 @@ func (tc zip215TestVector) Run(t *testing.T, isBatch bool) {
 		}
 	}
 
-	if !sigOk {
+	// The ZIP-215 test vectors are cases that a ZIP-215 verifier should
+	// pass, and the default verification algorithm should reject.
+	if sigOk != isZIP215 {
 		t.Fatalf("failed to verify signature")
 	}
 }
@@ -107,10 +109,18 @@ func TestZIP215(t *testing.T) {
 	for idx, tc := range testVectors {
 		n := fmt.Sprintf("TestCase_%d", idx)
 		t.Run(n, func(t *testing.T) {
-			tc.Run(t, false)
+			tc.Run(t, false, false)
 		})
 		t.Run(n+"_Batch", func(t *testing.T) {
-			tc.Run(t, true)
+			tc.Run(t, true, false)
+		})
+
+		n = n + "_ZIP215"
+		t.Run(n, func(t *testing.T) {
+			tc.Run(t, false, true)
+		})
+		t.Run(n+"_Batch", func(t *testing.T) {
+			tc.Run(t, true, true)
 		})
 	}
 }
