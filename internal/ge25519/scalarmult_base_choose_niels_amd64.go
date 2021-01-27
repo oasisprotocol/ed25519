@@ -27,6 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // +build amd64,!noasm
+// +build !force32bit
 
 package ge25519
 
