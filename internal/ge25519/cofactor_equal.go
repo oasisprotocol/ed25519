@@ -55,8 +55,8 @@ func geSub(r *ge25519p1p1, p *Ge25519, q *ge25519pniels) {
 	curve25519.Add(&t0, &r.x, &r.x)
 	curve25519.Sub(&r.x, &r.z, &r.y)
 	curve25519.Add(&r.y, &r.z, &r.y)
-	curve25519.Sub(&r.z, &t0, &r.t)
-	curve25519.Add(&r.t, &t0, &r.t)
+	curve25519.SubAfterBasic(&r.z, &t0, &r.t)
+	curve25519.AddAfterBasic(&r.t, &t0, &r.t)
 }
 
 // ProjectiveToExtended converts p from a projective group element to an

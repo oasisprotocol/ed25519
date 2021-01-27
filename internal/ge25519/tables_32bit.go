@@ -26,7 +26,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build 386 arm !go1.13,arm64 !go1.13,ppc64le !go1.13,ppc64 mips mipsle mips64le mips64 s390x
+// +build 386 arm !go1.13,arm64 !go1.13,ppc64le !go1.13,ppc64 mips mipsle mips64le mips64 s390x force32bit
+// +build !force64bit
 
 package ge25519
 
