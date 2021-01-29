@@ -33,8 +33,7 @@ package curve25519
 
 import (
 	"encoding/binary"
-
-	"github.com/oasisprotocol/ed25519/internal/uint128"
+	"math/bits"
 )
 
 // Upstream: `curve25519-donna-64bit.h`
@@ -195,90 +194,114 @@ func Mul(out, in2, in *Bignum25519) {
 	// See also: https://github.com/golang/go/issues/21536
 
 	var (
-		mul                uint128.Uint128
-		t0, t1, t2, t3, t4 uint128.Uint128
+		mul_lo, mul_hi, carry                                                uint64
+		t0_lo, t0_hi, t1_lo, t1_hi, t2_lo, t2_hi, t3_lo, t3_hi, t4_lo, t4_hi uint64
 	)
 
 	r0, r1, r2, r3, r4 := in[0], in[1], in[2], in[3], in[4]
 	s0, s1, s2, s3, s4 := in2[0], in2[1], in2[2], in2[3], in2[4]
 
-	uint128.Mul64x64(&t0, r0, s0)
+	t0_hi, t0_lo = bits.Mul64(r0, s0)
 
-	uint128.Mul64x64(&t1, r0, s1)
-	uint128.Mul64x64(&mul, r1, s0)
-	uint128.Add(&t1, &mul)
+	t1_hi, t1_lo = bits.Mul64(r0, s1)
+	mul_hi, mul_lo = bits.Mul64(r1, s0)
+	t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+	t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&t2, r0, s2)
-	uint128.Mul64x64(&mul, r2, s0)
-	uint128.Add(&t2, &mul)
-	uint128.Mul64x64(&mul, r1, s1)
-	uint128.Add(&t2, &mul)
+	t2_hi, t2_lo = bits.Mul64(r0, s2)
+	mul_hi, mul_lo = bits.Mul64(r2, s0)
+	t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+	t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r1, s1)
+	t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+	t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&t3, r0, s3)
-	uint128.Mul64x64(&mul, r3, s0)
-	uint128.Add(&t3, &mul)
-	uint128.Mul64x64(&mul, r1, s2)
-	uint128.Add(&t3, &mul)
-	uint128.Mul64x64(&mul, r2, s1)
-	uint128.Add(&t3, &mul)
+	t3_hi, t3_lo = bits.Mul64(r0, s3)
+	mul_hi, mul_lo = bits.Mul64(r3, s0)
+	t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+	t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r1, s2)
+	t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+	t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r2, s1)
+	t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+	t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&t4, r0, s4)
-	uint128.Mul64x64(&mul, r4, s0)
-	uint128.Add(&t4, &mul)
-	uint128.Mul64x64(&mul, r3, s1)
-	uint128.Add(&t4, &mul)
-	uint128.Mul64x64(&mul, r1, s3)
-	uint128.Add(&t4, &mul)
-	uint128.Mul64x64(&mul, r2, s2)
-	uint128.Add(&t4, &mul)
+	t4_hi, t4_lo = bits.Mul64(r0, s4)
+	mul_hi, mul_lo = bits.Mul64(r4, s0)
+	t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+	t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r3, s1)
+	t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+	t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r1, s3)
+	t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+	t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r2, s2)
+	t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+	t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
 
 	r1 *= 19
 	r2 *= 19
 	r3 *= 19
 	r4 *= 19
 
-	uint128.Mul64x64(&mul, r4, s1)
-	uint128.Add(&t0, &mul)
-	uint128.Mul64x64(&mul, r1, s4)
-	uint128.Add(&t0, &mul)
-	uint128.Mul64x64(&mul, r2, s3)
-	uint128.Add(&t0, &mul)
-	uint128.Mul64x64(&mul, r3, s2)
-	uint128.Add(&t0, &mul)
+	mul_hi, mul_lo = bits.Mul64(r4, s1)
+	t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+	t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r1, s4)
+	t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+	t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r2, s3)
+	t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+	t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r3, s2)
+	t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+	t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&mul, r4, s2)
-	uint128.Add(&t1, &mul)
-	uint128.Mul64x64(&mul, r2, s4)
-	uint128.Add(&t1, &mul)
-	uint128.Mul64x64(&mul, r3, s3)
-	uint128.Add(&t1, &mul)
+	mul_hi, mul_lo = bits.Mul64(r4, s2)
+	t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+	t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r2, s4)
+	t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+	t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r3, s3)
+	t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+	t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&mul, r4, s3)
-	uint128.Add(&t2, &mul)
-	uint128.Mul64x64(&mul, r3, s4)
-	uint128.Add(&t2, &mul)
+	mul_hi, mul_lo = bits.Mul64(r4, s3)
+	t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+	t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r3, s4)
+	t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+	t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&mul, r4, s4)
-	uint128.Add(&t3, &mul)
+	mul_hi, mul_lo = bits.Mul64(r4, s4)
+	t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+	t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
 
-	r0 = uint128.Lo(&t0) & reduceMask51
-	c := uint128.Shr(&t0, 51)
+	r0 = t0_lo & reduceMask51
+	c := (t0_hi << (64 - 51)) | (t0_lo >> 51)
 
-	uint128.Add64(&t1, c)
-	r1 = uint128.Lo(&t1) & reduceMask51
-	c = uint128.Shr(&t1, 51)
+	t1_lo, carry = bits.Add64(t1_lo, c, 0)
+	t1_hi, _ = bits.Add64(t1_hi, 0, carry)
+	r1 = t1_lo & reduceMask51
+	c = (t1_hi << (64 - 51)) | (t1_lo >> 51)
 
-	uint128.Add64(&t2, c)
-	r2 = uint128.Lo(&t2) & reduceMask51
-	c = uint128.Shr(&t2, 51)
+	t2_lo, carry = bits.Add64(t2_lo, c, 0)
+	t2_hi, _ = bits.Add64(t2_hi, 0, carry)
+	r2 = t2_lo & reduceMask51
+	c = (t2_hi << (64 - 51)) | (t2_lo >> 51)
 
-	uint128.Add64(&t3, c)
-	r3 = uint128.Lo(&t3) & reduceMask51
-	c = uint128.Shr(&t3, 51)
+	t3_lo, carry = bits.Add64(t3_lo, c, 0)
+	t3_hi, _ = bits.Add64(t3_hi, 0, carry)
+	r3 = t3_lo & reduceMask51
+	c = (t3_hi << (64 - 51)) | (t3_lo >> 51)
 
-	uint128.Add64(&t4, c)
-	r4 = uint128.Lo(&t4) & reduceMask51
-	c = uint128.Shr(&t4, 51)
+	t4_lo, carry = bits.Add64(t4_lo, c, 0)
+	t4_hi, _ = bits.Add64(t4_hi, 0, carry)
+	r4 = t4_lo & reduceMask51
+	c = (t4_hi << (64 - 51)) | (t4_lo >> 51)
 
 	r0 += c * 19
 	c = r0 >> 51
@@ -292,69 +315,80 @@ func Mul(out, in2, in *Bignum25519) {
 // out = in^(2 * count)
 func SquareTimes(out, in *Bignum25519, count int) {
 	// curve25519_square_times(bignum25519 out, const bignum25519 in, uint64_t count)
-	var t0, t1, t2, t3, t4 uint128.Uint128
+	var (
+		mul_lo, mul_hi, carry                                                uint64
+		t0_lo, t0_hi, t1_lo, t1_hi, t2_lo, t2_hi, t3_lo, t3_hi, t4_lo, t4_hi uint64
+	)
 
 	r0, r1, r2, r3, r4 := in[0], in[1], in[2], in[3], in[4]
 
 	// Note: ed25519-donna uses do/while, but count is never 0.
 	for i := 0; i < count; i++ {
-		var mul uint128.Uint128
-
 		d0 := r0 * 2
 		d1 := r1 * 2
 		d2 := r2 * 2 * 19
 		d419 := r4 * 19
 		d4 := d419 * 2
 
-		uint128.Mul64x64(&t0, r0, r0)
-		uint128.Mul64x64(&mul, d4, r1)
-		uint128.Add(&t0, &mul)
-		uint128.Mul64x64(&mul, d2, r3)
-		uint128.Add(&t0, &mul)
+		t0_hi, t0_lo = bits.Mul64(r0, r0)
+		mul_hi, mul_lo = bits.Mul64(d4, r1)
+		t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+		t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
+		mul_hi, mul_lo = bits.Mul64(d2, r3)
+		t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+		t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
 
-		uint128.Mul64x64(&t1, d0, r1)
-		uint128.Mul64x64(&mul, d4, r2)
-		uint128.Add(&t1, &mul)
-		uint128.Mul64x64(&mul, r3, r3*19)
-		uint128.Add(&t1, &mul)
+		t1_hi, t1_lo = bits.Mul64(d0, r1)
+		mul_hi, mul_lo = bits.Mul64(d4, r2)
+		t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+		t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
+		mul_hi, mul_lo = bits.Mul64(r3, r3*19)
+		t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+		t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
 
-		uint128.Mul64x64(&t2, d0, r2)
-		uint128.Mul64x64(&mul, r1, r1)
-		uint128.Add(&t2, &mul)
-		uint128.Mul64x64(&mul, d4, r3)
-		uint128.Add(&t2, &mul)
+		t2_hi, t2_lo = bits.Mul64(d0, r2)
+		mul_hi, mul_lo = bits.Mul64(r1, r1)
+		t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+		t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
+		mul_hi, mul_lo = bits.Mul64(d4, r3)
+		t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+		t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
 
-		uint128.Mul64x64(&t3, d0, r3)
-		uint128.Mul64x64(&mul, d1, r2)
-		uint128.Add(&t3, &mul)
-		uint128.Mul64x64(&mul, r4, d419)
-		uint128.Add(&t3, &mul)
+		t3_hi, t3_lo = bits.Mul64(d0, r3)
+		mul_hi, mul_lo = bits.Mul64(d1, r2)
+		t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+		t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
+		mul_hi, mul_lo = bits.Mul64(r4, d419)
+		t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+		t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
 
-		uint128.Mul64x64(&t4, d0, r4)
-		uint128.Mul64x64(&mul, d1, r3)
-		uint128.Add(&t4, &mul)
-		uint128.Mul64x64(&mul, r2, r2)
-		uint128.Add(&t4, &mul)
+		t4_hi, t4_lo = bits.Mul64(d0, r4)
+		mul_hi, mul_lo = bits.Mul64(d1, r3)
+		t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+		t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
+		mul_hi, mul_lo = bits.Mul64(r2, r2)
+		t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+		t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
 
-		r0 = uint128.Lo(&t0) & reduceMask51
+		r0 = t0_lo & reduceMask51
 
-		r1 = uint128.Lo(&t1) & reduceMask51
-		c := uint128.Shl(&t0, 13)
+		r1 = t1_lo & reduceMask51
+		c := (t0_hi << 13) | (t0_lo >> (64 - 13))
 		r1 += c
 
-		r2 = uint128.Lo(&t2) & reduceMask51
-		c = uint128.Shl(&t1, 13)
+		r2 = t2_lo & reduceMask51
+		c = (t1_hi << 13) | (t1_lo >> (64 - 13))
 		r2 += c
 
-		r3 = uint128.Lo(&t3) & reduceMask51
-		c = uint128.Shl(&t2, 13)
+		r3 = t3_lo & reduceMask51
+		c = (t2_hi << 13) | (t2_lo >> (64 - 13))
 		r3 += c
 
-		r4 = uint128.Lo(&t4) & reduceMask51
-		c = uint128.Shl(&t3, 13)
+		r4 = t4_lo & reduceMask51
+		c = (t3_hi << 13) | (t3_lo >> (64 - 13))
 		r4 += c
 
-		c = uint128.Shl(&t4, 13)
+		c = (t4_hi << 13) | (t4_lo >> (64 - 13))
 		r0 += c * 19
 
 		c = r0 >> 51
@@ -384,7 +418,10 @@ func SquareTimes(out, in *Bignum25519, count int) {
 
 func Square(out, in *Bignum25519) {
 	// curve25519_square(bignum25519 out, const bignum25519 in)
-	var t0, t1, t2, t3, t4, mul uint128.Uint128
+	var (
+		mul_lo, mul_hi, carry                                                uint64
+		t0_lo, t0_hi, t1_lo, t1_hi, t2_lo, t2_hi, t3_lo, t3_hi, t4_lo, t4_hi uint64
+	)
 
 	r0, r1, r2, r3, r4 := in[0], in[1], in[2], in[3], in[4]
 
@@ -394,54 +431,68 @@ func Square(out, in *Bignum25519) {
 	d419 := r4 * 19
 	d4 := d419 * 2
 
-	uint128.Mul64x64(&t0, r0, r0)
-	uint128.Mul64x64(&mul, d4, r1)
-	uint128.Add(&t0, &mul)
-	uint128.Mul64x64(&mul, d2, r3)
-	uint128.Add(&t0, &mul)
+	t0_hi, t0_lo = bits.Mul64(r0, r0)
+	mul_hi, mul_lo = bits.Mul64(d4, r1)
+	t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+	t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(d2, r3)
+	t0_lo, carry = bits.Add64(t0_lo, mul_lo, 0)
+	t0_hi, _ = bits.Add64(t0_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&t1, d0, r1)
-	uint128.Mul64x64(&mul, d4, r2)
-	uint128.Add(&t1, &mul)
-	uint128.Mul64x64(&mul, r3, r3*19)
-	uint128.Add(&t1, &mul)
+	t1_hi, t1_lo = bits.Mul64(d0, r1)
+	mul_hi, mul_lo = bits.Mul64(d4, r2)
+	t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+	t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r3, r3*19)
+	t1_lo, carry = bits.Add64(t1_lo, mul_lo, 0)
+	t1_hi, _ = bits.Add64(t1_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&t2, d0, r2)
-	uint128.Mul64x64(&mul, r1, r1)
-	uint128.Add(&t2, &mul)
-	uint128.Mul64x64(&mul, d4, r3)
-	uint128.Add(&t2, &mul)
+	t2_hi, t2_lo = bits.Mul64(d0, r2)
+	mul_hi, mul_lo = bits.Mul64(r1, r1)
+	t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+	t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(d4, r3)
+	t2_lo, carry = bits.Add64(t2_lo, mul_lo, 0)
+	t2_hi, _ = bits.Add64(t2_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&t3, d0, r3)
-	uint128.Mul64x64(&mul, d1, r2)
-	uint128.Add(&t3, &mul)
-	uint128.Mul64x64(&mul, r4, d419)
-	uint128.Add(&t3, &mul)
+	t3_hi, t3_lo = bits.Mul64(d0, r3)
+	mul_hi, mul_lo = bits.Mul64(d1, r2)
+	t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+	t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r4, d419)
+	t3_lo, carry = bits.Add64(t3_lo, mul_lo, 0)
+	t3_hi, _ = bits.Add64(t3_hi, mul_hi, carry)
 
-	uint128.Mul64x64(&t4, d0, r4)
-	uint128.Mul64x64(&mul, d1, r3)
-	uint128.Add(&t4, &mul)
-	uint128.Mul64x64(&mul, r2, r2)
-	uint128.Add(&t4, &mul)
+	t4_hi, t4_lo = bits.Mul64(d0, r4)
+	mul_hi, mul_lo = bits.Mul64(d1, r3)
+	t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+	t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
+	mul_hi, mul_lo = bits.Mul64(r2, r2)
+	t4_lo, carry = bits.Add64(t4_lo, mul_lo, 0)
+	t4_hi, _ = bits.Add64(t4_hi, mul_hi, carry)
 
-	r0 = uint128.Lo(&t0) & reduceMask51
-	c := uint128.Shr(&t0, 51)
+	r0 = t0_lo & reduceMask51
+	c := (t0_hi << (64 - 51)) | (t0_lo >> 51)
 
-	uint128.Add64(&t1, c)
-	r1 = uint128.Lo(&t1) & reduceMask51
-	c = uint128.Shr(&t1, 51)
+	t1_lo, carry = bits.Add64(t1_lo, c, 0)
+	t1_hi, _ = bits.Add64(t1_hi, 0, carry)
+	r1 = t1_lo & reduceMask51
+	c = (t1_hi << (64 - 51)) | (t1_lo >> 51)
 
-	uint128.Add64(&t2, c)
-	r2 = uint128.Lo(&t2) & reduceMask51
-	c = uint128.Shr(&t2, 51)
+	t2_lo, carry = bits.Add64(t2_lo, c, 0)
+	t2_hi, _ = bits.Add64(t2_hi, 0, carry)
+	r2 = t2_lo & reduceMask51
+	c = (t2_hi << (64 - 51)) | (t2_lo >> 51)
 
-	uint128.Add64(&t3, c)
-	r3 = uint128.Lo(&t3) & reduceMask51
-	c = uint128.Shr(&t3, 51)
+	t3_lo, carry = bits.Add64(t3_lo, c, 0)
+	t3_hi, _ = bits.Add64(t3_hi, 0, carry)
+	r3 = t3_lo & reduceMask51
+	c = (t3_hi << (64 - 51)) | (t3_lo >> 51)
 
-	uint128.Add64(&t4, c)
-	r4 = uint128.Lo(&t4) & reduceMask51
-	c = uint128.Shr(&t4, 51)
+	t4_lo, carry = bits.Add64(t4_lo, c, 0)
+	t4_hi, _ = bits.Add64(t4_hi, 0, carry)
+	r4 = t4_lo & reduceMask51
+	c = (t4_hi << (64 - 51)) | (t4_lo >> 51)
 
 	r0 += c * 19
 	c = r0 >> 51

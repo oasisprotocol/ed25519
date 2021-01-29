@@ -30,21 +30,21 @@ functionality.
 #### Benchmarks
 
 Comparisons between this package, `golang.org/x/crypto/ed25519`,
-and `golang.org/x/crypto/curve25519`.  Numbers taken on a i7-8550U
+and `golang.org/x/crypto/curve25519`.  Numbers taken on a i7-10510U
 CPU (@ 1.80GHz) with hyper-threading and Turbo Boost disabled.
 
 ```
 benchmark                    old ns/op     new ns/op     delta
-BenchmarkKeyGeneration-4     101526        45700         -54.99%
-BenchmarkSigning-4           103660        47647         -54.04%
-BenchmarkVerification-4      275115        163693        -40.50%
+BenchmarkKeyGeneration-8     105543        34049         -67.74%
+BenchmarkSigning-8           106769        35981         -66.30%
+BenchmarkVerification-8      299258        140538        -53.04%
 
-BenchmarkScalarBaseMult-4    80279         44429         -44.66%   (X25519)
+BenchmarkScalarBaseMult-8     80386         32649         -59.38% (X25519)
 ```
 
-Batch verification on the same system takes approximately `5082764 ns`
+Batch verification on the same system takes approximately `5170515 ns`
 to process a 64 signature batch using the `crypto/rand` entropy source
-for roughly `79418 ns` per signature in the batch.
+for roughly `80789 ns` per signature in the batch.
 
 #### Verification semantics
 
